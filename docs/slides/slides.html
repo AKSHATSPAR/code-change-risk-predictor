@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Explainable Code Change Risk Predictor</title>
+<style>
+  @page { size: 1280px 720px; margin: 0; }
+  :root {
+    --ink: #1b2232;
+    --ink-soft: #2a3346;
+    --text: #1f2633;
+    --muted: #5d6677;
+    --line: #dfe3ea;
+    --tint: #f3f5f8;
+    --risk: #e0532f;
+    --risk-tint: #fdece6;
+    --safe: #138f84;
+    --safe-tint: #e2f4f1;
+    --amber: #e59a1c;
+    --amber-tint: #fdf3e0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #8a8f99; }
+  body { font-family: "Avenir Next", "Helvetica Neue", Arial, sans-serif; color: var(--text); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .slide { width: 1280px; height: 720px; position: relative; overflow: hidden; background: #fff; padding: 60px 76px 56px; page-break-after: always; break-after: page; margin: 0 auto; }
+  @media screen { .slide { margin: 24px auto; box-shadow: 0 6px 24px rgba(0,0,0,.25); } }
+  .dark { background: var(--ink); color: #fff; }
+  h1 { font-size: 40px; font-weight: 700; margin: 0 0 30px; letter-spacing: -0.4px; line-height: 1.15; }
+  h2 { font-size: 22px; font-weight: 700; margin: 0 0 10px; }
+  p { font-size: 20px; line-height: 1.5; margin: 0 0 14px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 16px; line-height: 1.45; }
+  .tiny { font-size: 14px; }
+  .num { position: absolute; right: 40px; bottom: 26px; font-size: 13px; color: #9aa1ad; }
+  .foot { position: absolute; left: 76px; bottom: 26px; font-size: 13px; color: #9aa1ad; }
+  .dark .num, .dark .foot { color: #7f889a; }
+  .row { display: flex; gap: 32px; }
+  .col { flex: 1; min-width: 0; }
+  .card { background: var(--tint); border-radius: 16px; padding: 22px 24px; }
+  .card.risk { background: var(--risk-tint); }
+  .card.safe { background: var(--safe-tint); }
+  .card.amber { background: var(--amber-tint); }
+  .card h2 { font-size: 20px; }
+  .card p { font-size: 17px; margin: 0; }
+  .stat { font-size: 64px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+  .stat-label { font-size: 17px; color: var(--muted); margin-top: 10px; line-height: 1.35; }
+  .dot { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; background: var(--ink); color: #fff; font-weight: 700; font-size: 18px; flex: none; }
+  .dot.risk { background: var(--risk); } .dot.safe { background: var(--safe); } .dot.amber { background: var(--amber); }
+  .pill { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+  .pill.high { background: var(--risk-tint); color: #b23a1c; }
+  .pill.med { background: var(--amber-tint); color: #9a6200; }
+  .pill.low { background: var(--safe-tint); color: #0d6b62; }
+  .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
+  .terminal { background: var(--ink); color: #e6e9ef; border-radius: 14px; padding: 22px 26px; font-family: "SF Mono", Menlo, monospace; font-size: 14.5px; line-height: 1.6; white-space: pre-wrap; }
+  .terminal .r { color: #ff8a65; } .terminal .g { color: #7fd6c9; } .terminal .d { color: #8d96a8; }
+  img.fig { display: block; max-width: 100%; }
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 20px; font-size: 19px; line-height: 1.45; }
+  ul.plain li .dot { margin-top: -2px; }
+  table.t { border-collapse: collapse; width: 100%; font-size: 17px; }
+  table.t th { text-align: left; font-size: 14px; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 2px solid var(--line); }
+  table.t td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  table.t td.n, table.t th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar-row { display: grid; grid-template-columns: 250px 1fr 64px; align-items: center; gap: 14px; margin-bottom: 7px; font-size: 16px; }
+  .bar-track { height: 20px; background: var(--tint); border-radius: 6px; position: relative; }
+  .bar { height: 20px; border-radius: 6px; background: #b9c2d0; }
+  .bar.best { background: var(--risk); }
+  .bar.ens { background: #8796ad; }
+  .val { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<!-- 1. Title -->
+<section class="slide dark">
+  <div class="row" style="height:100%; align-items:center; gap:56px;">
+    <div class="col" style="flex:1.15;">
+      <div style="font-size:54px; font-weight:700; line-height:1.08; letter-spacing:-1px;">Explainable Code Change Risk Predictor</div>
+      <p style="font-size:22px; color:#c9d0dd; margin-top:24px;">Spotting the commits most likely to introduce a bug, and saying why.</p>
+      <div style="margin-top:48px; font-size:18px; color:#c9d0dd; line-height:1.7;">
+        Akshat Sparsh <span style="color:#8d96a8;">· 23BDS0149</span><br>
+        Anuprakash Dubey <span style="color:#8d96a8;">· 23BDS0162</span><br>
+        <span style="color:#8d96a8;">Guided by</span> Dr. Manjula R
+      </div>
+    </div>
+    <div class="col" style="flex:0.95;">
+      <div style="background:var(--ink-soft); border-radius:18px; padding:22px 24px;">
+        <div style="font-size:14px; color:#8d96a8; margin-bottom:14px;">Newest commits to psf/requests, scored by the model</div>
+        <div style="display:grid; grid-template-columns: 74px 1fr auto; row-gap:14px; column-gap:14px; align-items:center; font-size:15px;">
+          <span class="mono" style="color:#8d96a8;">85400d8</span><span>Allow use of 'no_proxy' in proxies</span><span class="pill high">76% High</span>
+          <span class="mono" style="color:#8d96a8;">7fd9267</span><span>Remove final remnants from 2.6</span><span class="pill high">76% High</span>
+          <span class="mono" style="color:#8d96a8;">58cea7a</span><span>Drop support for CPython 3.7</span><span class="pill med">47% Medium</span>
+          <span class="mono" style="color:#8d96a8;">2e1086f</span><span>Adding comment</span><span class="pill med">47% Medium</span>
+          <span class="mono" style="color:#8d96a8;">e5894e9</span><span>Improve flake8 help.py</span><span class="pill low">21% Low</span>
+          <span class="mono" style="color:#8d96a8;">1f6de03</span><span>Cleanup certs.py</span><span class="pill low">19% Low</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="num">1</div>
+</section>
+
+<!-- 2. Problem -->
+<section class="slide">
+  <h1>Review time is limited</h1>
+  <div class="row" style="gap:40px;">
+    <div class="col" style="flex:1.05;">
+      <p>In most teams a one-line typo fix and a 600-line refactor get roughly the same attention in code review.</p>
+      <p>Bugs slip through in the big, scattered changes, and by the time they show up weeks later they cost far more to fix.</p>
+      <p style="margin-top:28px;"><b>Our goal:</b> a model that ranks commits by risk the moment they are made, and gives reasons a developer can act on.</p>
+    </div>
+    <div class="col" style="flex:0.95;">
+      <div class="card safe" style="margin-bottom:22px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span class="mono tiny muted">commit e5894e9</span><span class="pill low">21% Low</span></div>
+        <h2 style="margin-top:10px;">Improve flake8 help.py</h2>
+        <p class="muted">1 file · 0 lines added · 1 deleted</p>
+      </div>
+      <div class="card risk">
+        <div style="display:flex; justify-content:space-between; align-items:center;"><span class="mono tiny muted">commit b7809ac</span><span class="pill high">77% High</span></div>
+        <h2 style="margin-top:10px;">Making class and function docstrings consistent</h2>
+        <p class="muted">9 files · 101 lines added · 92 deleted</p>
+      </div>
+      <p class="small muted" style="margin-top:18px;">Two real commits from the test period. Which one would you review first?</p>
+    </div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">2</div>
+</section>
+
+<!-- 3. What the tool does -->
+<section class="slide">
+  <h1>What the tool does</h1>
+  <div class="row" style="gap:44px; align-items:flex-start;">
+    <div class="col" style="flex:0.8;">
+      <ul class="plain">
+        <li><span class="dot">1</span><span>Takes any commit from a git repository</span></li>
+        <li><span class="dot">2</span><span>Computes 14 measurements about it, like its size, its spread and its author's experience</span></li>
+        <li><span class="dot risk">3</span><span>Predicts the chance it introduces a bug</span></li>
+        <li><span class="dot safe">4</span><span>Explains the score in plain English, using SHAP</span></li>
+      </ul>
+    </div>
+    <div class="col" style="flex:1.2;">
+<div class="terminal"><span class="d">$ uv run python -m riskpredictor.explain --commit 85400d8</span>
+
+Commit 85400d8d: Allow use of 'no_proxy' in the proxies argument
+
+Predicted risk : <span class="r">76.1%  (High risk, FLAGGED)</span>
+Average commit : 44.8%
+
+Factors raising the risk:
+  1. Adds 91 lines, more than 96% of past commits,
+     which raises the risk by <span class="r">18.0</span> percentage points.
+  2. Modifies 3 files, more than 94% of past commits,
+     which raises the risk by <span class="r">3.9</span> percentage points.
+  3. Spreads its changes across files with entropy 0.88,
+     which raises the risk by <span class="r">2.4</span> percentage points.
+
+<span class="d">Actual label: </span><span class="g">buggy</span><span class="d"> (a later fix was traced back to it)</span></div>
+    </div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">3</div>
+</section>
+
+<!-- 4. Pipeline -->
+<section class="slide">
+  <h1>How it works</h1>
+  <img class="fig" src="../images/pipeline.png" style="width:1100px; margin:6px auto 0;">
+  <p class="small muted" style="margin-top:24px; text-align:center;">Everything runs from one Python package. Each step is a single command and is covered by tests.</p>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">4</div>
+</section>
+
+<!-- 5. Data -->
+<section class="slide">
+  <h1>The data: 14 years of psf/requests</h1>
+  <div class="row" style="gap:24px; margin-top:24px;">
+    <div class="col card"><div class="stat">2,788</div><div class="stat-label">commits that change code, mined with PyDriller</div></div>
+    <div class="col card risk"><div class="stat" style="color:var(--risk);">21.9%</div><div class="stat-label">of them later turned out to introduce a bug</div></div>
+    <div class="col card"><div class="stat">14</div><div class="stat-label">features per commit, from Kamei et al. (2013)</div></div>
+    <div class="col card"><div class="stat">2011</div><div class="stat-label">to Aug 2025, the full project history</div></div>
+  </div>
+  <div class="row" style="margin-top:26px; gap:40px; align-items:center;">
+    <div style="width:430px; flex:none;"><img class="fig" src="../../reports/figures/eda_bug_rate_over_time.png" style="width:430px;"></div>
+    <div class="col">
+      <p class="small"><b>Why requests?</b> It is one of the most used Python libraries, with a long and public history of bugs and fixes.</p>
+      <p class="small"><b>What we kept:</b> non-merge commits that touch code. We dropped the last 180 days because their bugs mostly haven't been found yet.</p>
+      <p class="small"><b>Worth noticing:</b> most activity was in the early years, and the bug rate drifts over time. That is why we split the data by date.</p>
+    </div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">5</div>
+</section>
+
+<!-- 6. Features -->
+<section class="slide">
+  <h1>14 features in five groups</h1>
+  <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:18px; margin-top:10px;">
+    <div class="card" style="padding:22px 20px;"><span class="dot">D</span><h2 style="margin-top:16px;">Diffusion</h2><p class="muted" style="font-size:16px;">How spread out is the change?</p><p class="mono" style="font-size:15px; margin-top:16px; line-height:1.8;">ns, nd, nf,<br>entropy</p></div>
+    <div class="card risk" style="padding:22px 20px;"><span class="dot risk">S</span><h2 style="margin-top:16px;">Size</h2><p class="muted" style="font-size:16px;">How big is it?</p><p class="mono" style="font-size:15px; margin-top:16px; line-height:1.8;">la, ld, lt</p></div>
+    <div class="card amber" style="padding:22px 20px;"><span class="dot amber">P</span><h2 style="margin-top:16px;">Purpose</h2><p class="muted" style="font-size:16px;">Is it fixing a bug?</p><p class="mono" style="font-size:15px; margin-top:16px; line-height:1.8;">fix</p></div>
+    <div class="card" style="padding:22px 20px;"><span class="dot">H</span><h2 style="margin-top:16px;">History</h2><p class="muted" style="font-size:16px;">How busy are the files it touches?</p><p class="mono" style="font-size:15px; margin-top:16px; line-height:1.8;">ndev, age, nuc</p></div>
+    <div class="card safe" style="padding:22px 20px;"><span class="dot safe">E</span><h2 style="margin-top:16px;">Experience</h2><p class="muted" style="font-size:16px;">How experienced is the author?</p><p class="mono" style="font-size:15px; margin-top:16px; line-height:1.8;">exp, rexp, sexp</p></div>
+  </div>
+  <div class="card" style="margin-top:26px; background:#fff; border:1px solid var(--line);">
+    <div class="small muted" style="margin-bottom:12px;">A real example: commit <span class="mono">85400d8</span>, "Allow use of 'no_proxy' in the proxies argument"</div>
+    <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:18px; font-size:16px; line-height:1.7;">
+      <div><span class="mono">ns</span> 2 · <span class="mono">nd</span> 2<br><span class="mono">nf</span> 3 · <span class="mono">entropy</span> 0.88</div>
+      <div><span class="mono">la</span> 91 · <span class="mono">ld</span> 15<br><span class="mono">lt</span> 702</div>
+      <div><span class="mono">fix</span> 0</div>
+      <div><span class="mono">ndev</span> 130 · <span class="mono">nuc</span> 482<br><span class="mono">age</span> 0 days</div>
+      <div><span class="mono">exp</span> 0 · <span class="mono">rexp</span> 0<br><span class="mono">sexp</span> 0 (first commit)</div>
+    </div>
+  </div>
+  <p class="small" style="margin-top:22px;">History and experience are computed only from earlier commits. We walk the history from oldest to newest, so the model can never peek into the future.</p>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">6</div>
+</section>
+
+<!-- 7. SZZ -->
+<section class="slide">
+  <h1>Where the labels come from: SZZ</h1>
+  <div class="row" style="gap:22px; align-items:stretch;">
+    <div class="col card"><span class="dot">1</span><h2 style="margin-top:16px;">Find the fixes</h2><p class="muted">Commit messages that say <span class="mono" style="font-size:15px;">fix</span>, <span class="mono" style="font-size:15px;">bug</span> or <span class="mono" style="font-size:15px;">defect</span>. We found 518.</p></div>
+    <div class="col card"><span class="dot">2</span><h2 style="margin-top:16px;">Blame the lines</h2><p class="muted">Run <span class="mono" style="font-size:15px;">git blame</span> on every line each fix changed.</p></div>
+    <div class="col card risk"><span class="dot risk">3</span><h2 style="margin-top:16px;">Label the culprit</h2><p class="muted">The commit that last touched those lines is labelled buggy. That gave 613 commits.</p></div>
+  </div>
+  <div class="card amber" style="margin-top:28px;">
+    <h2>It isn't perfect</h2>
+    <p class="muted">Keywords miss some fixes. Fixes that only add lines can't be traced. A commit that only moved buggy code can get the blame. And very recent commits look clean because nobody has found their bugs yet.</p>
+  </div>
+  <div class="foot">Śliwerski, Zimmermann and Zeller (2005)</div><div class="num">7</div>
+</section>
+
+<!-- 8. EDA -->
+<section class="slide">
+  <h1>What separates buggy commits?</h1>
+  <div class="row" style="gap:40px;">
+    <div style="width:560px; flex:none;"><img class="fig" src="../../reports/figures/eda_feature_distributions.png" style="width:560px; margin-top:-8px;"></div>
+    <div class="col">
+      <div class="card risk" style="margin-bottom:18px;"><div class="stat" style="font-size:48px; color:var(--risk);">12 vs 3</div><div class="stat-label">median lines added by buggy vs clean commits, the biggest difference of all</div></div>
+      <p class="small"><b>8 of 14</b> features differ significantly (Mann-Whitney U test, p &lt; 0.05). Size and spread matter most.</p>
+      <p class="small">Author experience and the fix flag barely differ on their own.</p>
+      <p class="small">Every distribution overlaps a lot, so no single feature is enough. We need a model that combines them.</p>
+    </div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">8</div>
+</section>
+
+<!-- 9. Clustering -->
+<section class="slide">
+  <h1>Clustering finds a risky kind of commit</h1>
+  <img class="fig" src="../../reports/figures/eda_cluster_profiles.png" style="width:900px; margin:-10px auto 0;">
+  <div class="row" style="gap:20px; margin-top:14px;">
+    <div class="col card risk"><h2>Cross-cutting changes</h2><p class="muted">Several subsystems and files. <b style="color:#b23a1c;">40.7% buggy</b></p></div>
+    <div class="col card"><h2>Experienced authors</h2><p class="muted">Small changes by regulars. <b>19.0% buggy</b></p></div>
+    <div class="col card"><h2>Newcomers</h2><p class="muted">Small changes by new authors. <b>17.9% buggy</b></p></div>
+  </div>
+  <p class="small muted" style="margin-top:16px;">K-Means never saw the labels. DBSCAN agreed: the unusual commits it marked as noise were buggy 41% of the time.</p>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">9</div>
+</section>
+
+<!-- 10. Evaluation setup -->
+<section class="slide">
+  <h1>Testing it the honest way</h1>
+  <div style="display:flex; height:92px; border-radius:14px; overflow:hidden; margin-top:6px;">
+    <div style="flex:80; background:#dfe5ee; padding:16px 22px;"><div style="font-weight:700; font-size:20px;">Train: oldest 80%</div><div class="muted" style="font-size:16px;">Feb 2011 to Jun 2016 · 2,230 commits · 23.6% buggy</div></div>
+    <div style="flex:20; background:var(--risk); color:#fff; padding:16px 18px;"><div style="font-weight:700; font-size:20px;">Test: newest 20%</div><div style="font-size:15px; opacity:.9;">558 commits · 15.0% buggy</div></div>
+  </div>
+  <div class="row" style="gap:44px; margin-top:30px; align-items:flex-start;">
+    <div style="width:560px; flex:none;">
+      <div class="small muted" style="margin-bottom:12px;">TimeSeriesSplit inside the training period: always train on the past, validate on what comes next</div>
+      <div style="display:grid; grid-template-columns: 70px 1fr; row-gap:10px; align-items:center; font-size:14px;">
+        <span class="muted">Fold 1</span><div style="display:flex; height:22px;"><div style="width:16.6%; background:#8796ad; border-radius:5px 0 0 5px;"></div><div style="width:16.6%; background:var(--amber); border-radius:0 5px 5px 0;"></div></div>
+        <span class="muted">Fold 2</span><div style="display:flex; height:22px;"><div style="width:33.3%; background:#8796ad; border-radius:5px 0 0 5px;"></div><div style="width:16.6%; background:var(--amber); border-radius:0 5px 5px 0;"></div></div>
+        <span class="muted">Fold 3</span><div style="display:flex; height:22px;"><div style="width:50%; background:#8796ad; border-radius:5px 0 0 5px;"></div><div style="width:16.6%; background:var(--amber); border-radius:0 5px 5px 0;"></div></div>
+        <span class="muted">Fold 4</span><div style="display:flex; height:22px;"><div style="width:66.6%; background:#8796ad; border-radius:5px 0 0 5px;"></div><div style="width:16.6%; background:var(--amber); border-radius:0 5px 5px 0;"></div></div>
+        <span class="muted">Fold 5</span><div style="display:flex; height:22px;"><div style="width:83.3%; background:#8796ad; border-radius:5px 0 0 5px;"></div><div style="width:16.6%; background:var(--amber); border-radius:0 5px 5px 0;"></div></div>
+      </div>
+      <div class="tiny muted" style="margin-top:12px;"><span style="display:inline-block; width:12px; height:12px; background:#8796ad; border-radius:3px;"></span> train &nbsp;&nbsp; <span style="display:inline-block; width:12px; height:12px; background:var(--amber); border-radius:3px;"></span> validate</div>
+    </div>
+    <div class="col">
+      <ul class="plain">
+        <li><span class="dot risk">1</span><span><b>No peeking at the future.</b> A random split would train on 2020 commits and test on 2012 ones, which can never happen for real.</span></li>
+        <li><span class="dot">2</span><span><b>Tuning stays inside training.</b> Cross-validation and the hyperparameter search both use these folds.</span></li>
+        <li><span class="dot safe">3</span><span><b>Test set touched once.</b> The model and its threshold were chosen without looking at it.</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">10</div>
+</section>
+
+<!-- 11. Models -->
+<section class="slide">
+  <h1>13 algorithms compared</h1>
+  <div class="row" style="gap:44px;">
+    <div style="width:720px; flex:none;">
+      <div class="small muted" style="margin-bottom:10px;">Mean cross-validated ROC-AUC on the training period (how we picked the winner)</div>
+      <div class="bar-row"><span><b>XGBoost (tuned)</b></span><div class="bar-track"><div class="bar best" style="width:73.2%"></div></div><span class="val"><b>0.732</b></span></div>
+      <div class="bar-row"><span>Random Forest (tuned)</span><div class="bar-track"><div class="bar ens" style="width:72.7%"></div></div><span class="val">0.727</span></div>
+      <div class="bar-row"><span>SVM (linear)</span><div class="bar-track"><div class="bar" style="width:72.6%"></div></div><span class="val">0.726</span></div>
+      <div class="bar-row"><span>Logistic Regression</span><div class="bar-track"><div class="bar" style="width:72.5%"></div></div><span class="val">0.725</span></div>
+      <div class="bar-row"><span>AdaBoost</span><div class="bar-track"><div class="bar ens" style="width:72.5%"></div></div><span class="val">0.725</span></div>
+      <div class="bar-row"><span>SVM (RBF, tuned)</span><div class="bar-track"><div class="bar" style="width:72.4%"></div></div><span class="val">0.724</span></div>
+      <div class="bar-row"><span>MLP</span><div class="bar-track"><div class="bar" style="width:70.8%"></div></div><span class="val">0.708</span></div>
+      <div class="bar-row"><span>Naive Bayes</span><div class="bar-track"><div class="bar" style="width:70.0%"></div></div><span class="val">0.700</span></div>
+      <div class="bar-row"><span>k-NN</span><div class="bar-track"><div class="bar" style="width:67.3%"></div></div><span class="val">0.673</span></div>
+      <div class="bar-row"><span>Decision Tree (ID3 style)</span><div class="bar-track"><div class="bar" style="width:66.4%"></div></div><span class="val">0.664</span></div>
+      <div class="bar-row"><span>Decision Tree (CART)</span><div class="bar-track"><div class="bar" style="width:63.0%"></div></div><span class="val">0.630</span></div>
+      <div class="bar-row"><span>Perceptron</span><div class="bar-track"><div class="bar" style="width:62.8%"></div></div><span class="val">0.628</span></div>
+      <div class="bar-row"><span>One-Class SVM (anomaly)</span><div class="bar-track"><div class="bar" style="width:60.5%"></div></div><span class="val">0.605</span></div>
+    </div>
+    <div class="col">
+      <div class="card" style="margin-bottom:18px;"><h2>A narrow win</h2><p class="muted">The top seven are within one standard deviation of each other. With 14 features and noisy labels, the data sets the ceiling.</p></div>
+      <div class="card"><h2>Ensembles lead</h2><p class="muted">XGBoost, random forest and AdaBoost all sit near the top. Single trees overfit.</p></div>
+    </div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">11</div>
+</section>
+
+<!-- 12. Imbalance and bias-variance -->
+<section class="slide">
+  <h1>Imbalance and overfitting</h1>
+  <div class="row" style="gap:44px;">
+    <div class="col" style="flex:0.9;">
+      <h2>Only 22% of commits are buggy</h2>
+      <p class="small muted">Recall of logistic regression at the default 0.5 threshold:</p>
+      <table class="t" style="margin-top:8px;">
+        <tr><th>Handling</th><th class="n">CV ROC-AUC</th><th class="n">Recall at 0.5</th></tr>
+        <tr><td>None</td><td class="n">0.721</td><td class="n" style="color:#b23a1c;"><b>0.31</b></td></tr>
+        <tr><td>Class weights</td><td class="n">0.721</td><td class="n" style="color:var(--safe);"><b>0.74</b></td></tr>
+        <tr><td>SMOTE</td><td class="n">0.719</td><td class="n" style="color:var(--safe);"><b>0.74</b></td></tr>
+      </table>
+      <p class="small" style="margin-top:20px;">Rebalancing barely changes the ranking, but without it the model misses about 70% of buggy commits. Either rebalance or tune the threshold.</p>
+    </div>
+    <div class="col" style="flex:1.1;">
+      <img class="fig" src="../../reports/figures/model_complexity_curve.png" style="width:600px;">
+      <p class="small" style="margin-top:12px;">A depth-15 tree scores <b>0.997</b> on its training folds but only <b>0.518</b> on validation. That is variance. Ensembles fix it.</p>
+    </div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">12</div>
+</section>
+
+<!-- 13. Results -->
+<section class="slide">
+  <h1>Results on the newest commits</h1>
+  <div class="row" style="gap:22px; margin-top:20px;">
+    <div class="col card"><div class="stat">0.779</div><div class="stat-label">test ROC-AUC for the tuned XGBoost model</div></div>
+    <div class="col card"><div class="stat">0.401</div><div class="stat-label">test PR-AUC, where random guessing gets 0.150</div></div>
+    <div class="col card risk"><div class="stat" style="color:var(--risk);">80%</div><div class="stat-label">of buggy commits caught (67 of 84) at the chosen threshold</div></div>
+  </div>
+  <div class="row" style="gap:22px; margin-top:22px;">
+    <div class="card safe" style="flex:1.45;">
+      <div class="stat" style="color:var(--safe); font-size:72px;">48%</div>
+      <h2 style="margin:12px 0 6px;">of all bug-introducing commits sit in the riskiest 20%</h2>
+      <p class="muted">A reviewer who checks only one commit in five finds about half the bugs. That is 2.4 times better than picking at random.</p>
+    </div>
+    <div class="card" style="flex:1;">
+      <div class="small muted" style="margin-bottom:10px;">Confusion matrix on the 558 test commits</div>
+      <div style="display:grid; grid-template-columns: 90px 1fr 1fr; gap:8px; font-size:15px; align-items:center;">
+        <span></span><span class="muted" style="text-align:center;">flagged</span><span class="muted" style="text-align:center;">not flagged</span>
+        <span class="muted">buggy</span><div style="background:var(--safe); color:#fff; border-radius:10px; padding:12px 0; text-align:center; font-weight:700; font-size:22px;">67</div><div style="background:var(--risk-tint); color:#b23a1c; border-radius:10px; padding:12px 0; text-align:center; font-weight:700; font-size:22px;">17</div>
+        <span class="muted">clean</span><div style="background:var(--amber-tint); color:#9a6200; border-radius:10px; padding:12px 0; text-align:center; font-weight:700; font-size:22px;">176</div><div style="background:#e6ebf2; border-radius:10px; padding:12px 0; text-align:center; font-weight:700; font-size:22px;">298</div>
+      </div>
+      <p class="small muted" style="margin-top:12px;">It flags 44% of commits at this threshold. A team would tune it to their review budget.</p>
+    </div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">13</div>
+</section>
+
+<!-- 14. Local explanation -->
+<section class="slide">
+  <h1>Why is this commit risky?</h1>
+  <div class="row" style="gap:40px; align-items:center;">
+    <div style="width:640px; flex:none;"><img class="fig" src="../../reports/figures/commit_85400d8d.png" style="width:640px;"></div>
+    <div class="col">
+      <p class="small">SHAP splits one prediction into a sum. The average risk (44.8%) plus one contribution per feature adds up exactly to this commit's risk (76.1%).</p>
+      <div class="card risk" style="margin-top:14px;"><p style="font-size:17px;">"Adds 91 lines, more than 96% of past commits, which raises the risk by 18.0 percentage points."</p></div>
+      <p class="small" style="margin-top:18px;">We compare each value with past commits so the sentence means something to a developer.</p>
+      <p class="small muted">LIME, our second method, agreed on 60% of the top three features.</p>
+    </div>
+  </div>
+  <div class="foot">Lundberg and Lee (2017), Ribeiro et al. (2016)</div><div class="num">14</div>
+</section>
+
+<!-- 15. Global explanation -->
+<section class="slide">
+  <h1>What drives risk overall</h1>
+  <div class="row" style="gap:44px; align-items:center;">
+    <div style="width:560px; flex:none;"><img class="fig" src="../../reports/figures/shap_summary.png" style="width:560px;"></div>
+    <div class="col">
+      <ul class="plain">
+        <li><span class="dot risk">1</span><span><b>Lines added dominates.</b> It moves the risk by about 11 points on average, more than everything else combined.</span></li>
+        <li><span class="dot risk">2</span><span>Then files touched, how many people worked on those files before, and how spread out the change is.</span></li>
+        <li><span class="dot safe">3</span><span>Experienced authors and larger existing files make a commit slightly safer.</span></li>
+        <li><span class="dot">4</span><span>Every direction makes sense, which suggests the model learned real patterns and not noise.</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">15</div>
+</section>
+
+<!-- 16. Lesson -->
+<section class="slide">
+  <h1>Accuracy isn't the whole story</h1>
+  <div class="row" style="gap:24px;">
+    <div class="col card risk" style="padding:28px 30px; display:flex; flex-direction:column;">
+      <div class="small muted" style="margin-bottom:12px;">Logistic regression, during development</div>
+      <p style="font-size:26px; font-weight:600; line-height:1.35;">"Modifies 3 files, which <span style="color:#b23a1c;">lowers</span> the risk."</p>
+      <p class="muted" style="margin-top:16px; font-size:18px;">Files touched and entropy have a correlation of 0.97, so the model gave them large weights with opposite signs that cancel out.</p>
+      <div style="display:flex; gap:34px; margin-top:auto; padding-top:24px;">
+        <div><div class="stat" style="font-size:50px;">0.725</div><div class="stat-label">CV ROC-AUC</div></div>
+        <div><div class="stat" style="font-size:50px;">0.769</div><div class="stat-label">test ROC-AUC</div></div>
+      </div>
+    </div>
+    <div class="col card safe" style="padding:28px 30px; display:flex; flex-direction:column;">
+      <div class="small muted" style="margin-bottom:12px;">Tuned XGBoost, the final model</div>
+      <p style="font-size:26px; font-weight:600; line-height:1.35;">"Modifies 3 files, more than 94% of past commits, which <span style="color:var(--safe);">raises</span> the risk."</p>
+      <p class="muted" style="margin-top:16px; font-size:18px;">Shallow trees with column sampling don't learn these reversals.</p>
+      <div style="display:flex; gap:34px; margin-top:auto; padding-top:24px;">
+        <div><div class="stat" style="font-size:50px;">0.732</div><div class="stat-label">CV ROC-AUC</div></div>
+        <div><div class="stat" style="font-size:50px;">0.779</div><div class="stat-label">test ROC-AUC</div></div>
+      </div>
+    </div>
+  </div>
+  <p style="margin-top:36px; font-size:22px;">The scores are almost the same, but only one model gave explanations a reviewer would trust. Checking that explanations make sense is part of evaluating a model.</p>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">16</div>
+</section>
+
+<!-- 17. App -->
+<section class="slide">
+  <h1>The app</h1>
+  <div class="row" style="gap:36px;">
+    <div style="width:700px; height:520px; flex:none; border-radius:14px; overflow:hidden; border:1px solid var(--line);">
+      <img src="../screenshots/explain.png" style="width:700px; display:block;">
+    </div>
+    <div class="col">
+      <ul class="plain" style="margin-top:4px;">
+        <li><span class="dot">1</span><span><b>Overview</b> of the data and the bug rate over time</span></li>
+        <li><span class="dot">2</span><span><b>Leaderboard</b> of all 13 models</span></li>
+        <li><span class="dot risk">3</span><span><b>Explain a commit</b> with a risk gauge, reasons and SHAP</span></li>
+        <li><span class="dot amber">4</span><span><b>What-if simulator</b> that shows how splitting a commit changes its risk</span></li>
+        <li><span class="dot">5</span><span><b>Score a local commit</b> from any git repo</span></li>
+        <li><span class="dot safe">6</span><span><b>Global explanations</b></span></li>
+      </ul>
+      <p class="small muted">Built with Streamlit. The same scoring also works from the command line.</p>
+    </div>
+  </div>
+  <div class="foot">Live demo</div><div class="num">17</div>
+</section>
+
+<!-- 18. Limitations -->
+<section class="slide">
+  <h1>Limitations and next steps</h1>
+  <div class="row" style="gap:28px;">
+    <div class="col card amber">
+      <h2>Limitations</h2>
+      <ul style="margin:10px 0 0; padding-left:22px; font-size:18px; line-height:1.55;">
+        <li>SZZ labels are noisy</li>
+        <li>Data from one project only</li>
+        <li>The bug rate drifts over time, from 23.6% to 15.0%</li>
+        <li>Class weights shift the probabilities up, so read them as relative risk</li>
+      </ul>
+    </div>
+    <div class="col card safe">
+      <h2>Next steps</h2>
+      <ul style="margin:10px 0 0; padding-left:22px; font-size:18px; line-height:1.55;">
+        <li>Train on one project, test on another</li>
+        <li>A cleaner SZZ variant that skips refactorings</li>
+        <li>Features from the diff content itself</li>
+        <li>Incremental scoring, so a git hook answers in under a second</li>
+      </ul>
+    </div>
+  </div>
+  <div class="row" style="gap:36px; margin-top:22px; align-items:center;">
+    <div style="width:380px; flex:none;"><img class="fig" src="../../reports/figures/model_learning_curve.png" style="width:380px;"></div>
+    <div class="col"><p>The learning curve flattens after about 1,100 commits, so more data from the same project won't help much. Better features or cleaner labels will.</p></div>
+  </div>
+  <div class="foot">Code Change Risk Predictor</div><div class="num">18</div>
+</section>
+
+<!-- 19. Thanks -->
+<section class="slide dark">
+  <div style="display:flex; flex-direction:column; justify-content:center; height:100%;">
+    <div style="font-size:60px; font-weight:700; letter-spacing:-1px;">Thank you</div>
+    <p style="font-size:24px; color:#c9d0dd; margin-top:14px;">Questions are welcome.</p>
+    <div style="margin-top:56px; font-size:19px; color:#c9d0dd; line-height:1.8;">
+      <span style="color:#8d96a8;">Code and report:</span> <span class="mono" style="font-size:18px;">github.com/AKSHATSPAR/code-change-risk-predictor</span><br>
+      <span style="color:#8d96a8;">Run the demo:</span> <span class="mono" style="font-size:18px;">uv run streamlit run app/streamlit_app.py</span>
+    </div>
+  </div>
+  <div class="num">19</div>
+</section>
+
+</body>
+</html>
