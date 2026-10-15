@@ -63,7 +63,7 @@ def _path(env_var: str, default: str) -> Path:
 DATASET_PATH = _path("RISKPREDICTOR_DATA", "data/processed/dataset.csv")
 BUNDLE_PATH = _path("RISKPREDICTOR_BUNDLE", "models/best_model.joblib")
 REPORTS_DIR = _path("RISKPREDICTOR_REPORTS", "reports")
-DEFAULT_REPO = "data/raw/repos/requests"
+DEFAULT_REPO = os.environ.get("RISKPREDICTOR_REPO", "data/raw/repos/requests")
 REQUESTS_URL = "https://github.com/psf/requests.git"
 REQUESTS_SNAPSHOT = "611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60"  # the commit our dataset was mined from
 EXAMPLE_COMMIT = "6f66281a"  # newest change to the library's source code in that snapshot
@@ -513,7 +513,7 @@ def page_score_local(bundle: dict, df: pd.DataFrame) -> None:
     if not explain_available():
         return
 
-    default_repo = ROOT / DEFAULT_REPO
+    default_repo = _path("RISKPREDICTOR_REPO", DEFAULT_REPO)
     if not (default_repo / ".git").exists():
         st.info("No copy of psf/requests was found. You can download the same snapshot the model was trained on "
                 "(about 20 MB, usually under a minute), or point the form below at any other git repository.",

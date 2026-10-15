@@ -18,6 +18,7 @@ def app(monkeypatch, tmp_path) -> AppTest:
     monkeypatch.setenv("RISKPREDICTOR_DATA", "missing/dataset.csv")
     monkeypatch.setenv("RISKPREDICTOR_BUNDLE", "missing/best_model.joblib")
     monkeypatch.setenv("RISKPREDICTOR_REPORTS", str(tmp_path))
+    monkeypatch.setenv("RISKPREDICTOR_REPO", str(tmp_path / "no_repo_here"))  # same on every machine
     at = AppTest.from_file(APP, default_timeout=90)
     at.run()
     assert not at.exception
@@ -61,9 +62,16 @@ def test_score_local_rejects_bad_repo(app, tmp_path):
     at = open_page(app, "Score a Local Commit")
     at.text_input[0].set_value(str(tmp_path))
     at.text_input[1].set_value("abc1234")
-    at.button[0].click().run()
+    button(at, "Score commit").click().run()
     assert not at.exception
     assert "not a git repository" in at.error[0].value
+
+
+def test_score_local_offers_download_when_repo_missing(app):
+    pytest.importorskip("riskpredictor.explain")
+    at = open_page(app, "Score a Local Commit")
+    assert button(at, "Download psf/requests")  # not clicked: it needs the network
+    assert any("No copy of psf/requests" in info.value for info in at.info)
 
 
 @pytest.mark.parametrize("page", ["Explain a Commit", "Global Explanations"])
