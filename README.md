@@ -106,6 +106,10 @@ The mined dataset and the trained model are already in the repo, so you can open
 uv run streamlit run app/streamlit_app.py
 ```
 
+## Hosting the app online
+
+The app runs on [Streamlit Community Cloud](https://streamlit.io/cloud) straight from this repo. Create an app with main file `app/streamlit_app.py` and Python 3.12. It installs the pinned versions in `app/requirements.txt`, so the saved model loads with the same libraries it was trained with. The repo already contains the dataset and the model, and the "Score a Local Commit" page has a button that downloads the same snapshot of psf/requests we trained on.
+
 ## Rebuilding everything from scratch
 
 Clone the repository you want to mine:

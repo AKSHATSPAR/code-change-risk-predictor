@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -25,6 +27,8 @@ import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # so "import charts" works from any cwd
+# Lets the app run without installing the package first (for example on Streamlit Community Cloud).
+sys.path.insert(1, str(Path(__file__).resolve().parents[1] / "src"))
 
 import charts  # noqa: E402
 
@@ -60,6 +64,9 @@ DATASET_PATH = _path("RISKPREDICTOR_DATA", "data/processed/dataset.csv")
 BUNDLE_PATH = _path("RISKPREDICTOR_BUNDLE", "models/best_model.joblib")
 REPORTS_DIR = _path("RISKPREDICTOR_REPORTS", "reports")
 DEFAULT_REPO = "data/raw/repos/requests"
+REQUESTS_URL = "https://github.com/psf/requests.git"
+REQUESTS_SNAPSHOT = "611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60"  # the commit our dataset was mined from
+EXAMPLE_COMMIT = "6f66281a"  # newest change to the library's source code in that snapshot
 
 BUILD_CMD = "uv run python -m riskpredictor.build_dataset --repo data/raw/repos/requests"
 TRAIN_CMD = "uv run python -m riskpredictor.train"
@@ -487,6 +494,18 @@ def page_whatif(bundle: dict, df: pd.DataFrame) -> None:
     show_explanation(bundle, pd.Series(values), df, reference=float(row["risk"]), key="whatif")
 
 
+def download_requests_snapshot(dest: Path) -> None:
+    """Clone psf/requests and check out the snapshot the dataset was built from."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    partial = dest.with_name(dest.name + ".partial")
+    shutil.rmtree(partial, ignore_errors=True)
+    subprocess.run(["git", "clone", "--quiet", REQUESTS_URL, str(partial)],
+                   check=True, capture_output=True, text=True, timeout=600)
+    subprocess.run(["git", "-C", str(partial), "checkout", "--quiet", REQUESTS_SNAPSHOT],
+                   check=True, capture_output=True, text=True, timeout=120)
+    partial.rename(dest)
+
+
 def page_score_local(bundle: dict, df: pd.DataFrame) -> None:
     st.title("Score a Local Commit")
     st.markdown("Mine a commit straight from a git repository on this computer, score it and explain it, "
@@ -494,10 +513,23 @@ def page_score_local(bundle: dict, df: pd.DataFrame) -> None:
     if not explain_available():
         return
 
+    default_repo = ROOT / DEFAULT_REPO
+    if not (default_repo / ".git").exists():
+        st.info("No copy of psf/requests was found. You can download the same snapshot the model was trained on "
+                "(about 20 MB, usually under a minute), or point the form below at any other git repository.",
+                icon=":material/download:")
+        if st.button("Download psf/requests", icon=":material/download:"):
+            with st.spinner("Cloning psf/requests ..."):
+                try:
+                    download_requests_snapshot(default_repo)
+                    st.success(f"Done. Try commit `{EXAMPLE_COMMIT}` below.", icon=":material/check_circle:")
+                except Exception as exc:  # no git, no network, ...
+                    st.error(f"Download failed: {exc}")
+
     with st.form("score_local"):
         repo = st.text_input("Repository path", value=DEFAULT_REPO,
                              help="Absolute, or relative to the project folder")
-        commit = st.text_input("Commit hash (full or short)", placeholder="e.g. 1a2b3c4")
+        commit = st.text_input("Commit hash (full or short)", placeholder=f"e.g. {EXAMPLE_COMMIT}")
         submitted = st.form_submit_button("Score commit", type="primary")
     st.caption("Mining replays the repository history up to the commit, so this can take **30 to 60 seconds**.")
 
