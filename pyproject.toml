@@ -1,0 +1,42 @@
+[project]
+name = "riskpredictor"
+version = "0.1.0"
+description = "Explainable ML-based code change risk predictor (just-in-time defect prediction with SHAP/LIME)"
+authors = [
+    { name = "Akshat Sparsh", email = "akshatsparsh@gmail.com" },
+    { name = "Anuprakash Dubey" },
+]
+requires-python = ">=3.12"
+dependencies = [
+    "imbalanced-learn>=0.14.2",
+    "joblib>=1.6.0",
+    "lime>=0.2.0.1",
+    "matplotlib>=3.11.2",
+    "pandas>=3.0.6",
+    "plotly>=7.1.0",
+    "pydriller>=2.12",
+    "scikit-learn>=1.9.1",
+    "seaborn>=0.13.2",
+    "shap>=0.53.0",
+    "streamlit>=1.66.0",
+    "tqdm>=4.70.1",
+    "xgboost>=3.4.1",
+]
+
+[project.scripts]
+riskpredictor = "riskpredictor.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.24,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "nbconvert>=7.17.2",
+    "nbformat>=5.11.1",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
