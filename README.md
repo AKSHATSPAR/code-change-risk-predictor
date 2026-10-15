@@ -1,10 +1,13 @@
 # Explainable Code Change Risk Predictor
 
 [![tests](https://github.com/AKSHATSPAR/code-change-risk-predictor/actions/workflows/tests.yml/badge.svg)](https://github.com/AKSHATSPAR/code-change-risk-predictor/actions/workflows/tests.yml)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://code-change-risk-predictor.streamlit.app)
 
 This project looks at a git commit and estimates how likely it is to introduce a bug. It also tells you why, in plain English, so the score is something a developer can actually act on.
 
 In research papers the idea is usually called *just-in-time defect prediction*.
+
+**Try it online:** [code-change-risk-predictor.streamlit.app](https://code-change-risk-predictor.streamlit.app). If nobody has opened it for a while it takes about 30 seconds to wake up.
 
 ![Explain a commit](docs/screenshots/explain.png)
 
@@ -108,7 +111,7 @@ uv run streamlit run app/streamlit_app.py
 
 ## Hosting the app online
 
-The app runs on [Streamlit Community Cloud](https://streamlit.io/cloud) straight from this repo. Create an app with main file `app/streamlit_app.py` and Python 3.12. It installs the pinned versions in `app/requirements.txt`, so the saved model loads with the same libraries it was trained with. The repo already contains the dataset and the model, and the "Score a Local Commit" page has a button that downloads the same snapshot of psf/requests we trained on.
+The live app at [code-change-risk-predictor.streamlit.app](https://code-change-risk-predictor.streamlit.app) runs on [Streamlit Community Cloud](https://streamlit.io/cloud) straight from this repo, and redeploys by itself whenever `main` changes. To host your own copy, create an app with main file `app/streamlit_app.py` and Python 3.12. It installs the pinned versions in `app/requirements.txt`, so the saved model loads with the same libraries it was trained with. The repo already contains the dataset and the model, and the "Score a Local Commit" page has a button that downloads the same snapshot of psf/requests we trained on.
 
 ## Rebuilding everything from scratch
 

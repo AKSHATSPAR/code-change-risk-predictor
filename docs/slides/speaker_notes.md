@@ -34,7 +34,7 @@ What to say on each slide. Aim for about a minute per slide, so the whole talk r
 
 **16. Accuracy isn't the whole story.** This is our favourite finding. Two models with almost the same score, but one of them gave backwards explanations because of correlated features. If you only looked at accuracy you'd never notice.
 
-**17. The app.** Switch to the live demo here (see the demo plan in the Q&A notes). If the demo can't run, talk through the screenshot.
+**17. The app.** Switch to the live demo here (see the demo plan in the Q&A notes). Mention that anyone can try it at the link on the slide. If the demo can't run, talk through the screenshot.
 
 **18. Limitations and next steps.** Be honest about noisy labels and having one project. The learning curve shows more of the same data won't help, so the next steps are better labels and features.
 

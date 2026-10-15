@@ -149,7 +149,7 @@ Try training on one project and testing on another, use a cleaner SZZ variant, a
 
 ## Demo plan (about 3 minutes)
 
-1. Start the app with `uv run streamlit run app/streamlit_app.py`.
+1. Open https://code-change-risk-predictor.streamlit.app a few minutes before you start, because it may need about 30 seconds to wake up. If the internet is unreliable, run it locally instead with `uv run streamlit run app/streamlit_app.py`.
 2. **Overview.** Point at the bug rate chart and mention that it drops over time, which is why we split by time.
 3. **Model Leaderboard.** Show that XGBoost was picked by cross-validation, and that the top models are close.
 4. **Explain a Commit.** Pick the top commit, read out the first reason, and show the SHAP chart and the real SZZ label underneath.

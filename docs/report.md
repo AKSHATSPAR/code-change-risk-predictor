@@ -320,7 +320,7 @@ For a while during development, the selected model was a logistic regression. It
 
 ## 9. Application
 
-We built a Streamlit app so the model can actually be used. Start it with `uv run streamlit run app/streamlit_app.py`.
+We built a Streamlit app so the model can actually be used. It is live at https://code-change-risk-predictor.streamlit.app, and it can also be run locally with `uv run streamlit run app/streamlit_app.py`.
 
 **Overview.** The size of the dataset, the bug rate over time and how buggy commits differ from clean ones.
 
