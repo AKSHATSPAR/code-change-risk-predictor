@@ -1,0 +1,36 @@
+{
+  "dataset": "data/processed/dataset.csv",
+  "n_commits": 2788,
+  "train": {
+    "n": 2230,
+    "start": "2011-02-13T18:52:37+00:00",
+    "end": "2016-06-27T22:47:34+00:00",
+    "n_buggy": 526,
+    "bug_rate": 0.2359
+  },
+  "fit": {
+    "n": 1784,
+    "start": "2011-02-13T18:52:37+00:00",
+    "end": "2014-03-01T01:06:59+00:00",
+    "n_buggy": 422,
+    "bug_rate": 0.2365
+  },
+  "validation": {
+    "n": 446,
+    "start": "2014-03-04T21:27:13+00:00",
+    "end": "2016-06-27T22:47:34+00:00",
+    "n_buggy": 104,
+    "bug_rate": 0.2332
+  },
+  "test": {
+    "n": 558,
+    "start": "2016-06-28T19:22:00+00:00",
+    "end": "2025-08-18T20:23:20+00:00",
+    "n_buggy": 84,
+    "bug_rate": 0.1505
+  },
+  "explanation": "train = oldest 80% of commits, test = newest 20%. Inside train, 'validation' is the newest 20% (used only to choose decision thresholds) and 'fit' is the rest. Cross-validation and tuning use TimeSeriesSplit on train.",
+  "cv": "TimeSeriesSplit(n_splits=5) on train",
+  "tuning": "RandomizedSearchCV(n_iter=25, scoring='roc_auc')",
+  "imbalance_strategy": "balanced"
+}
