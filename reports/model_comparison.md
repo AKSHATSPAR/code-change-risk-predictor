@@ -2,7 +2,7 @@
 
 Dataset: `data/processed/dataset.csv`, 2788 commits.
 Time-ordered split: **train** 2230 commits (2011-02-13 → 2016-06-27, bug rate 23.6%),
-**test** 558 commits (2016-06-28 → 2025-08-18, bug rate 15.0%).
+**test** 558 commits (2016-06-28 → 2025-08-18, bug rate 15.1%).
 Cross-validation: TimeSeriesSplit(n_splits=5) on train; tuning: RandomizedSearchCV(n_iter=25, scoring='roc_auc'). Thresholds are chosen on the validation slice
 (newest 20% of the training period, 446 commits) by maximising F1, never on the test set.
 Class-imbalance handling for this comparison: **class weights (balanced / scale_pos_weight)**.
@@ -20,7 +20,7 @@ Class-imbalance handling for this comparison: **class weights (balanced / scale_
 | 7 | MLP (neural network) | Neural network | not tuned | 0.708 ± 0.038 | 0.751 | 0.339 | 0.374 | 0.291 | 0.524 | 0.240 | 0.649 | 0.000 |
 | 8 | Naive Bayes | Probabilistic | not tuned | 0.700 ± 0.024 | 0.707 | 0.316 | 0.385 | 0.269 | 0.679 | 0.259 | 0.676 | 0.012 |
 | 9 | KNN | Instance-based | not tuned | 0.673 ± 0.060 | 0.715 | 0.296 | 0.356 | 0.276 | 0.500 | 0.215 | 0.634 | 0.190 |
-| 10 | Decision Tree (ID3-style, entropy) | Tree | not tuned | 0.664 ± 0.028 | 0.766 | 0.358 | 0.383 | 0.248 | 0.833 | 0.276 | 0.693 | 0.119 |
+| 10 | Decision Tree (CART, entropy) | Tree | not tuned | 0.664 ± 0.028 | 0.766 | 0.358 | 0.383 | 0.248 | 0.833 | 0.276 | 0.693 | 0.119 |
 | 11 | Decision Tree (CART, gini) | Tree | not tuned | 0.630 ± 0.027 | 0.750 | 0.351 | 0.347 | 0.215 | 0.905 | 0.236 | 0.659 | 0.119 |
 | 12 | Perceptron | Linear | not tuned | 0.628 ± 0.040 | 0.523 | 0.188 | 0.237 | 0.155 | 0.500 | 0.012 | 0.508 | 0.131 |
 | 13 | One-Class SVM (anomaly baseline) | Anomaly detection | not tuned | 0.605 ± 0.040 | 0.662 | 0.258 | 0.331 | 0.233 | 0.571 | 0.176 | 0.619 | 0.000 |
@@ -34,7 +34,7 @@ Decision threshold 0.514 (max F1 on the validation slice). Hyperparameters: `{"c
 Models whose CV ROC-AUC is within one standard deviation of the winner: XGBoost, Random Forest, SVM (linear), Logistic Regression, AdaBoost, SVM (RBF), MLP (neural network).
 These are practically tied, so simplicity, speed and explainability are fair tie-breakers.
 
-Test set: ROC-AUC 0.779, PR-AUC 0.401 (random = 0.150),
+Test set: ROC-AUC 0.779, PR-AUC 0.401 (random = 0.151),
 F1 0.410, precision 0.276, recall 0.798,
 MCC 0.307, balanced accuracy 0.713,
 Recall@20%Effort 0.083.
@@ -75,7 +75,7 @@ naive 0.5 threshold, where an unweighted model flags far fewer buggy commits.
 
 ## Notes and caveats
 
-* PR-AUC of random guessing equals the test bug rate (0.150), so compare PR-AUC against that.
+* PR-AUC of random guessing equals the test bug rate (0.151), so compare PR-AUC against that.
 * For tuned models the CV score is the best of 25 random candidates, so it is slightly optimistic
   (nested cross-validation would remove this bias but costs 5x more time).
 * The One-Class SVM never sees buggy commits; it is an anomaly-detection baseline and cannot be selected.

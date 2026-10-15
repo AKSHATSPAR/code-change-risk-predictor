@@ -8,13 +8,13 @@ Short answers to the questions people are most likely to ask about the project, 
 |---|---|
 | Commits in the dataset | 2,788 (psf/requests, Feb 2011 to Aug 2025) |
 | Buggy share | 21.9% (about 1 buggy for every 3.6 clean) |
-| Bug rate, train vs test | 23.6% vs 15.0% |
+| Bug rate, train vs test | 23.6% vs 15.1% |
 | Train / test split | oldest 80% (2,230) / newest 20% (558) |
 | Algorithms compared | 13 |
 | Best model | tuned XGBoost, 108 trees of depth 2 |
 | CV ROC-AUC (train) | 0.732 |
 | Test ROC-AUC | 0.779 |
-| Test PR-AUC | 0.401 (random would get 0.150) |
+| Test PR-AUC | 0.401 (random would get 0.151) |
 | Recall at the chosen threshold | 0.80 (67 of 84 buggy commits caught) |
 | Bugs found in the riskiest 20% of commits | 48%, which is 2.4 times random |
 | Top feature | lines added (about 11 points of risk on average) |
@@ -69,7 +69,7 @@ A random split would let the model train on commits from 2020 and then be tested
 By mean ROC-AUC in 5-fold `TimeSeriesSplit` cross-validation inside the training period. The test set wasn't used for choosing anything, not even the threshold.
 
 **Why ROC-AUC and PR-AUC instead of accuracy?**
-Only 22% of commits are buggy. A model that always says "clean" would be 78% accurate and useless. ROC-AUC measures how well the model ranks buggy above clean. PR-AUC focuses on the buggy class, and its random baseline equals the bug rate (0.150 on our test set).
+Only 22% of commits are buggy. A model that always says "clean" would be 78% accurate and useless. ROC-AUC measures how well the model ranks buggy above clean. PR-AUC focuses on the buggy class, and its random baseline equals the bug rate (0.151 on our test set).
 
 **What is MCC?**
 Matthews correlation coefficient. It is a correlation between predictions and truth that uses all four cells of the confusion matrix, so it stays honest on imbalanced data. It ranges from -1 to 1.
@@ -96,6 +96,9 @@ It helped the flexible models most. XGBoost went from 0.673 to 0.732 CV ROC-AUC,
 
 **What is the One-Class SVM doing in the table?**
 It's an anomaly detector trained only on clean commits. It still beats random (test ROC-AUC 0.662), which shows that unusual commits tend to be risky. It can't be chosen as the final model because it never learns what a buggy commit looks like.
+
+**Is your "ID3" tree really ID3?**
+Not exactly, and it's better to say so. It uses entropy and information gain like ID3, but scikit-learn always makes binary splits like CART and handles numeric features directly. So we call it a CART tree with the entropy criterion. It did a little better than the gini tree (CV ROC-AUC 0.664 against 0.630).
 
 **Why didn't the perceptron work?**
 It is a linear classifier without probabilities, and the classes aren't linearly separable here. Its test ROC-AUC was only 0.523, close to random.
@@ -139,7 +142,7 @@ Lines added, by a wide margin. On average it moves the predicted risk by about 1
 As a bot on pull requests or a pre-merge check. It scores each new commit, posts the risk and the top reasons, and reviewers look harder at the high-risk ones. Our command-line tool already does the scoring part.
 
 **What are the main limitations?**
-Noisy SZZ labels, data from one project only, drift over time (the bug rate fell from 23.6% to 15.0%), and probabilities that are shifted upwards by class weighting, so they should be read as relative risk.
+Noisy SZZ labels, data from one project only, drift over time (the bug rate fell from 23.6% to 15.1%), and probabilities that are shifted upwards by class weighting, so they should be read as relative risk.
 
 **What would you do next?**
 Try training on one project and testing on another, use a cleaner SZZ variant, add features from the diff content itself, and make scoring incremental so a git hook can score a commit in under a second.

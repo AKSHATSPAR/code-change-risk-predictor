@@ -1,5 +1,7 @@
 # Explainable Code Change Risk Predictor
 
+[![tests](https://github.com/AKSHATSPAR/code-change-risk-predictor/actions/workflows/tests.yml/badge.svg)](https://github.com/AKSHATSPAR/code-change-risk-predictor/actions/workflows/tests.yml)
+
 This project looks at a git commit and estimates how likely it is to introduce a bug. It also tells you why, in plain English, so the score is something a developer can actually act on.
 
 In research papers the idea is usually called *just-in-time defect prediction*.
@@ -71,7 +73,7 @@ We trained on the oldest 80% of commits (2011 to 2016) and tested on the newest 
 
 A few things worth knowing:
 
-- Random guessing would get a PR-AUC of 0.150, which is the bug rate in the test period.
+- Random guessing would get a PR-AUC of 0.151, which is the bug rate in the test period.
 - If a reviewer only looks at the 20% of commits the model ranks riskiest, they catch **48% of all bug-introducing commits**. That's 2.4 times better than picking at random.
 - The top seven models are within one standard deviation of each other, so the data limits us more than the choice of algorithm does.
 - Lines added is by far the strongest signal. After that come files touched, the history of the files, and how spread out the change is.
@@ -110,6 +112,12 @@ Clone the repository you want to mine:
 
 ```bash
 git clone https://github.com/psf/requests.git data/raw/repos/requests
+```
+
+To get exactly our dataset, check out the snapshot we mined (21 Sep 2026). Without this you'll mine whatever requests looks like today:
+
+```bash
+git -C data/raw/repos/requests checkout 611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60
 ```
 
 Mine it and label it (takes a minute or two). You can pass several repos with `--repo a b c`.
@@ -185,7 +193,7 @@ tests/              pytest tests (51 of them)
 
 | Area | Methods | Where to find them |
 |---|---|---|
-| Classification | Naive Bayes, decision trees (ID3 style and CART), KNN, logistic regression, perceptron, MLP, linear and RBF SVM | `modeling.py` |
+| Classification | Naive Bayes, decision trees (gini and entropy splits), KNN, logistic regression, perceptron, MLP, linear and RBF SVM | `modeling.py` |
 | Ensembles | random forest, AdaBoost, XGBoost, plus complexity and learning curves for bias and variance | `modeling.py`, `train.py` |
 | Unsupervised analysis | K-Means, hierarchical clustering, DBSCAN, PCA, kernel PCA, t-SNE | `eda.py`, `notebooks/01_eda.ipynb` |
 | Imbalance and tuning | class weights, SMOTE, one-class SVM, randomized hyperparameter search | `modeling.py`, `reports/imbalance_comparison.csv` |

@@ -260,7 +260,7 @@ Factors raising the risk:
   <h1>Testing it the honest way</h1>
   <div style="display:flex; height:92px; border-radius:14px; overflow:hidden; margin-top:6px;">
     <div style="flex:80; background:#dfe5ee; padding:16px 22px;"><div style="font-weight:700; font-size:20px;">Train: oldest 80%</div><div class="muted" style="font-size:16px;">Feb 2011 to Jun 2016 · 2,230 commits · 23.6% buggy</div></div>
-    <div style="flex:20; background:var(--risk); color:#fff; padding:16px 18px;"><div style="font-weight:700; font-size:20px;">Test: newest 20%</div><div style="font-size:15px; opacity:.9;">558 commits · 15.0% buggy</div></div>
+    <div style="flex:20; background:var(--risk); color:#fff; padding:16px 18px;"><div style="font-weight:700; font-size:20px;">Test: newest 20%</div><div style="font-size:15px; opacity:.9;">558 commits · 15.1% buggy</div></div>
   </div>
   <div class="row" style="gap:44px; margin-top:30px; align-items:flex-start;">
     <div style="width:560px; flex:none;">
@@ -300,8 +300,8 @@ Factors raising the risk:
       <div class="bar-row"><span>MLP</span><div class="bar-track"><div class="bar" style="width:70.8%"></div></div><span class="val">0.708</span></div>
       <div class="bar-row"><span>Naive Bayes</span><div class="bar-track"><div class="bar" style="width:70.0%"></div></div><span class="val">0.700</span></div>
       <div class="bar-row"><span>k-NN</span><div class="bar-track"><div class="bar" style="width:67.3%"></div></div><span class="val">0.673</span></div>
-      <div class="bar-row"><span>Decision Tree (ID3 style)</span><div class="bar-track"><div class="bar" style="width:66.4%"></div></div><span class="val">0.664</span></div>
-      <div class="bar-row"><span>Decision Tree (CART)</span><div class="bar-track"><div class="bar" style="width:63.0%"></div></div><span class="val">0.630</span></div>
+      <div class="bar-row"><span>Decision Tree (entropy)</span><div class="bar-track"><div class="bar" style="width:66.4%"></div></div><span class="val">0.664</span></div>
+      <div class="bar-row"><span>Decision Tree (gini)</span><div class="bar-track"><div class="bar" style="width:63.0%"></div></div><span class="val">0.630</span></div>
       <div class="bar-row"><span>Perceptron</span><div class="bar-track"><div class="bar" style="width:62.8%"></div></div><span class="val">0.628</span></div>
       <div class="bar-row"><span>One-Class SVM (anomaly)</span><div class="bar-track"><div class="bar" style="width:60.5%"></div></div><span class="val">0.605</span></div>
     </div>
@@ -341,7 +341,7 @@ Factors raising the risk:
   <h1>Results on the newest commits</h1>
   <div class="row" style="gap:22px; margin-top:20px;">
     <div class="col card"><div class="stat">0.779</div><div class="stat-label">test ROC-AUC for the tuned XGBoost model</div></div>
-    <div class="col card"><div class="stat">0.401</div><div class="stat-label">test PR-AUC, where random guessing gets 0.150</div></div>
+    <div class="col card"><div class="stat">0.401</div><div class="stat-label">test PR-AUC, where random guessing gets 0.151</div></div>
     <div class="col card risk"><div class="stat" style="color:var(--risk);">80%</div><div class="stat-label">of buggy commits caught (67 of 84) at the chosen threshold</div></div>
   </div>
   <div class="row" style="gap:22px; margin-top:22px;">
@@ -453,7 +453,7 @@ Factors raising the risk:
       <ul style="margin:10px 0 0; padding-left:22px; font-size:18px; line-height:1.55;">
         <li>SZZ labels are noisy</li>
         <li>Data from one project only</li>
-        <li>The bug rate drifts over time, from 23.6% to 15.0%</li>
+        <li>The bug rate drifts over time, from 23.6% to 15.1%</li>
         <li>Class weights shift the probabilities up, so read them as relative risk</li>
       </ul>
     </div>

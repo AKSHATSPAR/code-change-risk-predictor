@@ -13,7 +13,7 @@ We mined the full history of the open-source project `psf/requests` with PyDrill
 
 We then compared thirteen classic algorithms, including Naive Bayes, decision trees, k-NN, logistic regression, SVM, MLP, random forest, AdaBoost and XGBoost. We also handled the class imbalance with class weights and SMOTE, and tested every model on the newest 20% of commits so the evaluation matches how the tool would be used for real.
 
-A tuned XGBoost model, chosen by cross-validation on the training period, reached a test ROC-AUC of 0.779 and a PR-AUC of 0.401 (random guessing gets 0.150). If reviewers only look at the 20% of commits it ranks riskiest, they find 48% of all bug-introducing commits. SHAP and LIME turn each prediction into a short list of reasons, and a Streamlit app lets a reviewer score any commit, read why it is risky and try out changes (for example, splitting a large commit) to see how the risk would drop.
+A tuned XGBoost model, chosen by cross-validation on the training period, reached a test ROC-AUC of 0.779 and a PR-AUC of 0.401 (random guessing gets 0.151). If reviewers only look at the 20% of commits it ranks riskiest, they find 48% of all bug-introducing commits. SHAP and LIME turn each prediction into a short list of reasons, and a Streamlit app lets a reviewer score any commit, read why it is risky and try out changes (for example, splitting a large commit) to see how the risk would drop.
 
 ---
 
@@ -56,7 +56,7 @@ A risk score on its own isn't that useful, though. If you tell a developer "this
 
 ### 4.1 Source repository
 
-We mined the complete history of `psf/requests`, a widely used Python HTTP library that has been active since 2011. We only kept non-merge commits that change source code. Commits that only touch documentation were skipped.
+We mined the complete history of `psf/requests`, a widely used Python HTTP library that has been active since 2011. We used the repository as it stood at commit `611c616` (21 September 2026), so the dataset can be rebuilt exactly. We only kept non-merge commits that change source code. Commits that only touch documentation were skipped.
 
 | Statistic | Value |
 |---|---|
@@ -181,7 +181,7 @@ The full tables are in `reports/model_comparison.md`. Running `uv run python -m 
 | Training (oldest 80%) | 2,230 | Feb 2011 to Jun 2016 | 23.6% |
 | Fitting part of training | 1,784 | Feb 2011 to Mar 2014 | 23.7% |
 | Validation part of training (used only for the threshold) | 446 | Mar 2014 to Jun 2016 | 23.3% |
-| Test (newest 20%) | 558 | Jun 2016 to Aug 2025 | 15.0% |
+| Test (newest 20%) | 558 | Jun 2016 to Aug 2025 | 15.1% |
 
 We used 5-fold `TimeSeriesSplit` cross-validation on the training period, so each fold trains on the past and validates on the block right after it. XGBoost, random forest, logistic regression and the RBF SVM were tuned with `RandomizedSearchCV` (25 candidates each, scored on ROC-AUC). For the imbalance we used balanced class weights (`scale_pos_weight` for XGBoost). The final model was picked by its mean cross-validated ROC-AUC on the training period, so the test scores played no part in the choice. Its decision threshold is the value that gave the best F1 on the validation slice.
 
@@ -198,7 +198,7 @@ We used 5-fold `TimeSeriesSplit` cross-validation on the training period, so eac
 | 7 | MLP (neural network) | Neural network | 0.708 ± 0.038 | 0.751 | 0.339 | 0.374 | 0.524 | 0.240 |
 | 8 | Naive Bayes | Probabilistic | 0.700 ± 0.024 | 0.707 | 0.316 | 0.385 | 0.679 | 0.259 |
 | 9 | k-NN | Instance-based | 0.673 ± 0.060 | 0.715 | 0.296 | 0.356 | 0.500 | 0.215 |
-| 10 | Decision Tree (ID3 style, entropy) | Tree | 0.664 ± 0.028 | 0.766 | 0.358 | 0.383 | 0.833 | 0.276 |
+| 10 | Decision Tree (CART, entropy) | Tree | 0.664 ± 0.028 | 0.766 | 0.358 | 0.383 | 0.833 | 0.276 |
 | 11 | Decision Tree (CART, gini) | Tree | 0.630 ± 0.027 | 0.750 | 0.351 | 0.347 | 0.905 | 0.236 |
 | 12 | Perceptron | Linear | 0.628 ± 0.040 | 0.523 | 0.188 | 0.237 | 0.500 | 0.012 |
 | 13 | One-Class SVM (anomaly baseline) | Anomaly detection | 0.605 ± 0.040 | 0.662 | 0.258 | 0.331 | 0.571 | 0.176 |
@@ -211,11 +211,11 @@ A few things stand out from this table.
 
 The top seven models are basically tied, since their CV scores are all within one standard deviation of XGBoost's. The ensembles (XGBoost, random forest and AdaBoost) are always near the top, but a properly regularised logistic regression is almost as good. With only 14 features and noisy labels, the data sets the ceiling more than the algorithm does.
 
-Single decision trees and the perceptron are clearly weaker and less stable. The trees overfit easily, and the perceptron doesn't produce useful probabilities.
+Single decision trees and the perceptron are clearly weaker and less stable. The trees overfit easily, and the perceptron doesn't produce useful probabilities. One note on naming: the entropy tree uses the same information gain idea as ID3, but scikit-learn always builds binary splits like CART, so it is a CART tree with the entropy criterion rather than a true ID3 tree.
 
 The One-Class SVM never sees a single buggy commit during training, yet it still beats random guessing with a test ROC-AUC of 0.662. This backs up what we saw with clustering: unusual commits tend to be risky.
 
-Most models actually score higher on the test set than in cross-validation, even though the test bug rate is lower (15.0% against 23.6%). The later history of `requests` is calmer, and its big risky commits are easier to spot. Keep in mind that PR-AUC should be compared with the test bug rate of 0.150, not with 0.5.
+Most models actually score higher on the test set than in cross-validation, even though the test bug rate is lower (15.1% against 23.6%). The later history of `requests` is calmer, and its big risky commits are easier to spot. Keep in mind that PR-AUC should be compared with the test bug rate of 0.151, not with 0.5.
 
 ### 7.3 The selected model: XGBoost
 
@@ -224,7 +224,7 @@ After tuning, the model uses 108 trees of depth 2 with a learning rate of 0.018,
 | Metric on the test set (558 commits) | Value |
 |---|---|
 | ROC-AUC | 0.779 |
-| PR-AUC | 0.401 (random gets 0.150) |
+| PR-AUC | 0.401 (random gets 0.151) |
 | Recall, precision, F1 | 0.798, 0.276, 0.410 |
 | MCC, balanced accuracy | 0.307, 0.713 |
 | Confusion matrix | 67 true positives, 176 false positives, 17 false negatives, 298 true negatives |
@@ -309,7 +309,10 @@ Factors raising the risk:
 
 ### 8.3 SHAP compared with LIME
 
-LIME explains the same prediction in a different way. It fits a small linear model around the commit using perturbed copies of it. Over 50 test commits, the two methods agreed on 60% of the top three features on average, with a mean Spearman rank correlation of 0.63. So they mostly agree on what matters but differ in the details. We use SHAP in the app because its values add up exactly to the prediction and it gives the same answer every time, while LIME depends on random sampling and on how it bins the features.
+LIME explains the same prediction in a different way. It fits a small linear model around the commit using perturbed copies of it. For the same commit as above, LIME also puts lines added far ahead of everything else:
+
+![LIME explanation of the same commit](../reports/figures/lime_85400d8d.png)
+ Over 50 test commits, the two methods agreed on 60% of the top three features on average, with a mean Spearman rank correlation of 0.63. So they mostly agree on what matters but differ in the details. We use SHAP in the app because its values add up exactly to the prediction and it gives the same answer every time, while LIME depends on random sampling and on how it bins the features.
 
 ### 8.4 A lesson about correlated features
 
@@ -335,7 +338,9 @@ We built a Streamlit app so the model can actually be used. Start it with `uv ru
 
 ![What-if page](screenshots/what-if.png)
 
-**Score a local commit.** Point it at any git repository on your computer and a commit hash. It mines the history up to that commit and scores it, which takes about 45 seconds on `requests`.
+**Score a local commit.** Point it at any git repository on your computer and a commit hash. It mines the history up to that commit and scores it, which takes about 45 seconds on `requests`. The example below scores the newest change to the library's source code.
+
+![Score a local commit](screenshots/score.png)
 
 **Global explanations.** Which features matter most across all commits.
 
@@ -353,7 +358,7 @@ The same scoring is available from the command line, which is handy for scripts 
 
 - *Noisy labels.* SZZ is a heuristic. For example, the commit "Add automatic code formatting" is labelled buggy only because later fixes touched lines it had reformatted. And some clean commits contain bugs that were simply never fixed.
 - *One project.* All of our results come from `requests`. Other projects have different bug rates and habits, so the model should be retrained, or at least checked on another project, before being used there.
-- *Drift.* The test period's bug rate (15.0%) is different from the training period's (23.6%), and a threshold chosen on older data flags generously on newer data. A deployed model would need retraining and a new threshold from time to time.
+- *Drift.* The test period's bug rate (15.1%) is different from the training period's (23.6%), and a threshold chosen on older data flags generously on newer data. A deployed model would need retraining and a new threshold from time to time.
 - *Slightly optimistic CV for tuned models.* Their CV score is the best of 25 candidates. Nested cross-validation would remove that bias but takes five times longer.
 
 ## 11. Conclusion and Future Work

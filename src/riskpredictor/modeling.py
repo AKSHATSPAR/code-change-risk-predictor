@@ -158,7 +158,7 @@ def model_zoo(balanced: bool = True, pos_weight: float = 1.0, random_state: int 
         ModelSpec("Decision Tree (CART, gini)",
                   DecisionTreeClassifier(criterion="gini", max_depth=5, min_samples_leaf=10, class_weight=cw, random_state=rs),
                   "Tree"),
-        ModelSpec("Decision Tree (ID3-style, entropy)",
+        ModelSpec("Decision Tree (CART, entropy)",
                   DecisionTreeClassifier(criterion="entropy", max_depth=5, min_samples_leaf=10, class_weight=cw, random_state=rs),
                   "Tree"),
         ModelSpec("KNN", KNeighborsClassifier(n_neighbors=25), "Instance-based"),

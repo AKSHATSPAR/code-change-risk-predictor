@@ -232,7 +232,7 @@ def learning_curve(pipeline, fit, val, cfg: TrainConfig) -> pd.DataFrame:
 def describe_split(df, train, fit, val, test, cfg: TrainConfig, data_path: str) -> dict:
     def part(d: pd.DataFrame) -> dict:
         return {"n": len(d), "start": d[DATE_COLUMN].min().isoformat(), "end": d[DATE_COLUMN].max().isoformat(),
-                "n_buggy": int(d[LABEL_COLUMN].sum()), "bug_rate": round(float(d[LABEL_COLUMN].mean()), 4)}
+                "n_buggy": int(d[LABEL_COLUMN].sum()), "bug_rate": round(float(d[LABEL_COLUMN].mean()), 6)}  # 6 dp so later rounding stays exact
 
     return {
         "dataset": data_path, "n_commits": len(df),
