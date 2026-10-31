@@ -14,6 +14,7 @@ small demo model (trained in seconds) so every page still works.
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import shutil
@@ -31,6 +32,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # so "import charts" w
 sys.path.insert(1, str(Path(__file__).resolve().parents[1] / "src"))
 
 import charts  # noqa: E402
+
+# A hosted app can keep an older copy of this module in memory after a redeploy, so always load the current file.
+charts = importlib.reload(charts)
 
 from riskpredictor.features import (  # noqa: E402
     DATE_COLUMN,
