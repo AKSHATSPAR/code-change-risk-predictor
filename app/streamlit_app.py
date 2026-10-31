@@ -578,29 +578,123 @@ def page_global(bundle: dict, df: pd.DataFrame) -> None:
                 f"Create it with:\n\n```\n{EXPLAIN_CMD}\n```", icon=":material/info:")
 
 
-@st.cache_data(show_spinner="Exploring the data...")
-def explorer_results(df: pd.DataFrame) -> dict:
-    """Everything the Data Explorer shows, computed once per dataset."""
+EXPLORER_SECTIONS = ["Data quality", "Size bands", "Over time", "Tables and tests", "Clustering", "Dimensionality",
+                     "Baseline and learning reviewer"]
+EMBEDDINGS = ["PCA", "t-SNE", "MDS", "Isomap"]
+
+
+# Each section of the Data Explorer has its own cached function, so only the section on screen is computed.
+@st.cache_data(show_spinner="Checking data quality...")
+def explore_quality(df: pd.DataFrame) -> dict:
     from riskpredictor import explore
 
-    sizes = explore.size_bands(df["la"])
     return {
         "types": explore.data_types_table(df),
         "duplicates": {k: v for k, v in explore.find_duplicates(df).items() if k != "examples"},
         "missing": explore.impute_real_missing(df),
         "imputation": explore.imputation_experiment(df)["table"],
+    }
+
+
+@st.cache_data(show_spinner="Summarising the data...")
+def explore_summaries(df: pd.DataFrame) -> dict:
+    from riskpredictor import explore
+
+    weekday = pd.to_datetime(df[DATE_COLUMN], utc=True).dt.day_name()
+    return {
         "bands": explore.binning_table(df),
         "time": explore.time_series(df),
         "tables": {
-            "Size band": explore.contingency(df, sizes, "lines added"),
+            "Size band": explore.contingency(df, explore.size_bands(df["la"]), "lines added"),
             "Bug fix or not": explore.contingency(df, df["fix"].map({0: "other", 1: "bug fix"}), "commit type"),
-            "Weekday": explore.contingency(df, pd.to_datetime(df[DATE_COLUMN], utc=True).dt.day_name(), "weekday"),
+            "Weekday": explore.contingency(df, weekday, "weekday"),
         },
         "bayes_fix": explore.bayesian_comparison(df, df["fix"] == 1, "bug-fix commits", "other commits")["p_a_higher"],
-        "bayes_friday": explore.bayesian_comparison(
-            df, pd.to_datetime(df[DATE_COLUMN], utc=True).dt.day_name() == "Friday", "Friday", "other days")["p_a_higher"],
-        "messages": explore.message_clusters(df)["table"],
+        "bayes_friday": explore.bayesian_comparison(df, weekday == "Friday", "Friday", "other days")["p_a_higher"],
     }
+
+
+@st.cache_data(show_spinner=False)
+def explore_matrix(df: pd.DataFrame) -> np.ndarray:
+    from riskpredictor.eda import prepare_matrix
+
+    return prepare_matrix(df)
+
+
+@st.cache_data(show_spinner="Clustering with K-Means...")
+def kmeans_for_k(df: pd.DataFrame, k: int) -> dict:
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_score
+
+    X, y = explore_matrix(df), df[LABEL_COLUMN].to_numpy()
+    labels = KMeans(n_clusters=k, n_init=10, random_state=42).fit_predict(X)
+    table = (pd.DataFrame({"cluster": labels, "buggy": y}).groupby("cluster")["buggy"]
+             .agg(size="size", bug_rate="mean").reset_index())
+    table["cluster"] = [f"C{c}" for c in table["cluster"]]
+    return {"table": table, "silhouette": float(silhouette_score(X, labels))}
+
+
+@st.cache_data(show_spinner="Comparing clustering methods...")
+def explore_clustering(df: pd.DataFrame) -> dict:
+    from sklearn.metrics import silhouette_score
+
+    from riskpredictor import eda, explore
+
+    X, y = explore_matrix(df), df[LABEL_COLUMN].to_numpy()
+    comparison = eda.compare_clustering(X, y, k=3)
+    spectral = explore.spectral_clusters(X, y)
+    gmm = explore.gaussian_mixture(X, y)
+    rows = comparison.table[["method", "family", "n_clusters", "silhouette", "bug_rate_range"]].to_dict("records")
+    rows.append({"method": "Spectral", "family": "graph-based", "n_clusters": int(len(spectral["bug_rates"])),
+                 "silhouette": spectral["silhouette"],
+                 "bug_rate_range": f"{spectral['bug_rates'].min():.1%} to {spectral['bug_rates'].max():.1%}"})
+    rows.append({"method": "Gaussian mixture (EM)", "family": "model-based", "n_clusters": gmm["best_k"],
+                 "silhouette": float(silhouette_score(X, gmm["labels"])),
+                 "bug_rate_range": f"{gmm['bug_rates'].min():.1%} to {gmm['bug_rates'].max():.1%}"})
+    return {"methods": pd.DataFrame(rows), "outliers": explore.clustering_outliers(X, y), "mst": explore.mst_clusters(X, y),
+            "messages": explore.message_clusters(df)["table"]}
+
+
+@st.cache_data(show_spinner="Reducing dimensions...")
+def explore_dimensions(df: pd.DataFrame) -> dict:
+    from riskpredictor import explore
+
+    X, y = explore_matrix(df), df[LABEL_COLUMN].to_numpy()
+    som = explore.SelfOrganizingMap().fit(X)
+    winners = som.winners(X)
+    hits = np.bincount(winners, minlength=som.rows * som.cols)
+    rates = np.bincount(winners, weights=y, minlength=som.rows * som.cols) / np.clip(hits, 1, None)
+    rates[hits < 5] = np.nan
+    return {"svd": explore.svd_spectrum(X), "mle_dim": explore.intrinsic_dimension_mle(X),
+            "loadings": explore.factor_analysis(X), "som_rates": rates.reshape(som.rows, som.cols)}
+
+
+@st.cache_data(show_spinner="Drawing the 2-D map...")
+def explore_embedding(df: pd.DataFrame, method: str) -> tuple[np.ndarray, np.ndarray]:
+    """A 2-D map of the commits with one method; slower methods use a sample."""
+    from sklearn.decomposition import PCA
+    from sklearn.manifold import MDS, TSNE, Isomap
+
+    X, y = explore_matrix(df), df[LABEL_COLUMN].to_numpy()
+    size = {"PCA": len(X), "t-SNE": 1500, "MDS": 600, "Isomap": 1500}[method]
+    idx = np.sort(np.random.default_rng(42).choice(len(X), size=min(size, len(X)), replace=False))
+    Xs = X[idx]
+    if method == "PCA":
+        xy = PCA(n_components=2).fit_transform(Xs)
+    elif method == "t-SNE":
+        xy = TSNE(n_components=2, perplexity=30, init="pca", random_state=42).fit_transform(Xs)
+    elif method == "MDS":
+        xy = MDS(n_components=2, n_init=1, init="random", random_state=42).fit_transform(Xs)
+    else:
+        xy = Isomap(n_neighbors=12, n_components=2).fit_transform(Xs)
+    return xy, y[idx]
+
+
+@st.cache_data(show_spinner="Fitting the linear regression...")
+def explore_baseline(df: pd.DataFrame, bundle_path: str) -> dict:
+    from riskpredictor import explore
+
+    return explore.linear_regression_baseline(df, Path(bundle_path) if Path(bundle_path).exists() else None)
 
 
 @st.cache_data(show_spinner="Running the simulation...")
@@ -612,17 +706,17 @@ def bandit_results(df: pd.DataFrame, rounds: int, epsilon: float) -> dict:
 
 def page_explorer(df: pd.DataFrame, is_real: bool) -> None:
     st.title("Data Explorer")
-    st.markdown("A closer look at the data behind the model: its quality, how the bug rate changes with size "
-                "and over time, a few statistical tests, the commit messages themselves, and a small "
-                "**reinforcement learning** demo.")
+    st.markdown("A closer look at the data behind the model, from cleaning it up to finding structure in it, "
+                "plus a simple baseline model and a small **reinforcement learning** demo.")
     if not is_real:
         st.info("Showing **synthetic demo data**, so the numbers below are made up.", icon=":material/info:")
-    r = explorer_results(df)
     overall = float(df[LABEL_COLUMN].mean())
-    tabs = st.tabs(["Data quality", "Size bands", "Over time", "Tables and tests", "Commit messages",
-                    "Learning reviewer"])
+    section = st.radio("Section", EXPLORER_SECTIONS, horizontal=True, key="explorer_section",
+                       label_visibility="collapsed")
+    st.divider()
 
-    with tabs[0]:
+    if section == "Data quality":
+        r = explore_quality(df)
         dup, miss = r["duplicates"], r["missing"]
         cols = st.columns(3)
         cols[0].metric("Repeated commit ids", dup["exact_duplicates"])
@@ -640,22 +734,24 @@ def page_explorer(df: pd.DataFrame, is_real: bool) -> None:
         with st.expander("Data type and measurement scale of every column"):
             st.dataframe(r["types"], hide_index=True, width="stretch")
 
-    with tabs[1]:
+    elif section == "Size bands":
+        r = explore_summaries(df)
         st.plotly_chart(charts.size_band_chart(r["bands"], overall), width="stretch")
         st.caption("Lines added binned into ordered bands. Commits that add no lines are never labelled buggy, "
                    "because the labelling method can only blame lines a commit added.")
 
-    with tabs[2]:
-        ts = r["time"]
+    elif section == "Over time":
+        ts = explore_summaries(df)["time"]
         cols = st.columns(2)
         cols[0].metric("Bug rate up to 2014", f"{ts['early_rate']:.1%}")
-        cols[1].metric("Bug rate from 2015", f"{ts['late_rate']:.1%}", delta=f"{(ts['late_rate'] - ts['early_rate']) * 100:+.1f} pts",
-                       delta_color="inverse")
+        cols[1].metric("Bug rate from 2015", f"{ts['late_rate']:.1%}",
+                       delta=f"{(ts['late_rate'] - ts['early_rate']) * 100:+.1f} pts", delta_color="inverse")
         st.plotly_chart(charts.rolling_rate_chart(ts["monthly"]), width="stretch")
         st.plotly_chart(charts.dot_chart(ts["weekday"].reset_index(), DATE_COLUMN, "Bug rate by weekday (UTC)", overall),
                         width="stretch")
 
-    with tabs[3]:
+    elif section == "Tables and tests":
+        r = explore_summaries(df)
         st.markdown("Each table crosses one grouping with the label. The **chi-square test** checks whether the "
                     "difference could be chance; **Cramer's V** says how strong the link is.")
         for name, result in r["tables"].items():
@@ -667,19 +763,53 @@ def page_explorer(df: pd.DataFrame, is_real: bool) -> None:
         cols[0].metric("Chance bug-fix commits are riskier", f"{r['bayes_fix']:.0%}", help="Bayesian, flat prior")
         cols[1].metric("Chance Friday commits are riskier", f"{r['bayes_friday']:.0%}", help="Bayesian, flat prior")
 
-    with tabs[4]:
-        st.markdown("Commit messages turned into word weights (TF-IDF) and clustered with K-Means.")
+    elif section == "Clustering":
+        st.markdown("Grouping commits **without looking at the labels**, then checking how buggy each group is.")
+        k = st.slider("Number of K-Means clusters", 2, 8, 3, key="kmeans_k")
+        km = kmeans_for_k(df, k)
+        st.plotly_chart(charts.cluster_rate_chart(km["table"], overall, f"K-Means with k = {k} "
+                                                  f"(silhouette {km['silhouette']:.2f})"), width="stretch")
+        r = explore_clustering(df)
+        st.markdown("**Other clustering methods**")
+        st.dataframe(r["methods"].round({"silhouette": 2}).rename(columns={
+            "method": "Method", "family": "Type", "n_clusters": "Clusters", "silhouette": "Silhouette",
+            "bug_rate_range": "Bug rate range"}), hide_index=True, width="stretch")
+        st.plotly_chart(charts.outlier_chart(r["outliers"], r["mst"], overall), width="stretch")
+        st.markdown("**Clustering the commit messages** (TF-IDF word weights, then K-Means)")
         st.dataframe(r["messages"].assign(**{"bug rate": r["messages"]["bug rate"].map("{:.1%}".format)}),
                      hide_index=True, width="stretch")
 
-    with tabs[5]:
-        st.markdown("Our models are **supervised**: they learn from commits whose answers are already known. "
-                    "A **reinforcement learner** never sees the answers. Here a simulated reviewer picks a size "
-                    "band each round, reviews one random commit from it, and is rewarded when it finds a bug. "
-                    "It mostly picks the best band so far, but sometimes explores another one.")
+    elif section == "Dimensionality":
+        r = explore_dimensions(df)
+        cols = st.columns(3)
+        cols[0].metric("Features", len(FEATURE_COLUMNS))
+        cols[1].metric("Components for 80% of the variance", r["svd"]["n80"])
+        cols[2].metric("Intrinsic dimension (MLE)", f"{r['mle_dim']:.1f}")
+        st.plotly_chart(charts.variance_chart(r["svd"]["cumulative"]), width="stretch")
+        method = st.radio("2-D map", EMBEDDINGS, horizontal=True, key="embedding_method")
+        xy, labels = explore_embedding(df, method)
+        st.plotly_chart(charts.embedding_chart(xy, labels, f"{method} map of {len(labels):,} commits"),
+                        width="stretch")
+        left, right = st.columns(2, gap="large")
+        with left:
+            st.plotly_chart(charts.loadings_heatmap(r["loadings"]), width="stretch")
+        with right:
+            st.plotly_chart(charts.som_heatmap(r["som_rates"]), width="stretch")
+
+    else:  # Baseline and learning reviewer
+        lr = explore_baseline(df, str(BUNDLE_PATH))
+        st.markdown("**A linear regression baseline.** A straight-line fit to the 0/1 label, trained on older commits "
+                    "and tested on newer ones. Most test commits are clean, so saying \"clean\" every time already "
+                    "scores high accuracy while catching no bugs at all.")
+        st.plotly_chart(charts.accuracy_recall_chart(lr["table"]), width="stretch")
+        st.divider()
+        st.markdown("**Supervised vs reinforcement learning.** Our models are supervised: they learn from commits whose "
+                    "answers are already known. A reinforcement learner never sees the answers. Here a simulated "
+                    "reviewer picks a size band each round, reviews one random commit from it, and is rewarded when "
+                    "it finds a bug. It mostly picks the best band so far, but sometimes explores another one.")
         cols = st.columns(2)
-        epsilon = cols[0].slider("How often it explores (epsilon)", 0.0, 0.5, 0.1, 0.05)
-        rounds = cols[1].slider("Number of reviews", 200, 3000, 1500, 100)
+        epsilon = cols[0].slider("How often it explores (epsilon)", 0.0, 0.5, 0.1, 0.05, key="bandit_epsilon")
+        rounds = cols[1].slider("Number of reviews", 200, 3000, 1500, 100, key="bandit_rounds")
         b = bandit_results(df, rounds, epsilon)
         st.plotly_chart(charts.bandit_chart(b["curves"]), width="stretch")
         cols = st.columns(3)

@@ -57,6 +57,7 @@
   ul.plain { list-style: none; margin: 0; padding: 0; }
   ul.plain li { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 20px; font-size: 19px; line-height: 1.45; }
   ul.plain li .dot { margin-top: -2px; }
+  ul.app-pages li { margin-bottom: 12px; font-size: 18px; line-height: 1.35; }
   table.t { border-collapse: collapse; width: 100%; font-size: 17px; }
   table.t th { text-align: left; font-size: 14px; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 2px solid var(--line); }
   table.t td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
@@ -526,13 +527,14 @@ Factors raising the risk:
       <img src="../screenshots/explain.png" style="width:700px; display:block;">
     </div>
     <div class="col">
-      <ul class="plain" style="margin-top:4px;">
+      <ul class="plain app-pages" style="margin-top:4px;">
         <li><span class="dot">1</span><span><b>Overview</b> of the data and the bug rate over time</span></li>
-        <li><span class="dot">2</span><span><b>Leaderboard</b> of all 13 models</span></li>
-        <li><span class="dot risk">3</span><span><b>Explain a commit</b> with a risk gauge, reasons and SHAP</span></li>
-        <li><span class="dot amber">4</span><span><b>What-if simulator</b> that shows how splitting a commit changes its risk</span></li>
-        <li><span class="dot">5</span><span><b>Score a local commit</b> from any git repo</span></li>
-        <li><span class="dot safe">6</span><span><b>Global explanations</b></span></li>
+        <li><span class="dot">2</span><span><b>Data explorer</b> with clustering, 2-D maps and a learning reviewer</span></li>
+        <li><span class="dot">3</span><span><b>Leaderboard</b> of all 13 models</span></li>
+        <li><span class="dot risk">4</span><span><b>Explain a commit</b> with a risk gauge, reasons and SHAP</span></li>
+        <li><span class="dot amber">5</span><span><b>What-if simulator</b> that shows how splitting a commit changes its risk</span></li>
+        <li><span class="dot">6</span><span><b>Score a local commit</b> from any git repo</span></li>
+        <li><span class="dot safe">7</span><span><b>Global explanations</b></span></li>
       </ul>
       <p class="small muted">Built with Streamlit. The same scoring also works from the command line.</p>
       <p class="small" style="margin-top:10px;"><b>Try it online:</b><br><span class="mono" style="font-size:14px; white-space:nowrap;">code-change-risk-predictor.streamlit.app</span></p>

@@ -201,3 +201,92 @@ def bandit_chart(curves: dict) -> go.Figure:
                                  hovertemplate="after %{x} reviews: %{y:.0f} bugs<extra>" + name + "</extra>"))
     return _layout(fig, title="Bugs found so far", xaxis_title="Commits reviewed", yaxis_title="Bugs found",
                    legend=dict(orientation="h", y=-0.2))
+
+
+def cluster_rate_chart(table: pd.DataFrame, overall: float, title: str) -> go.Figure:
+    """Bug rate per cluster, with each cluster's size in the hover."""
+    fig = go.Figure(go.Bar(
+        x=table["cluster"], y=table["bug_rate"] * 100, marker_color="#4a3aa7",
+        text=[f"{r:.0%}" for r in table["bug_rate"]], textposition="inside", insidetextanchor="end",
+        textfont_color="white", customdata=table["size"],
+        hovertemplate="%{x}: %{y:.1f}% buggy<br>%{customdata} commits<extra></extra>",
+    ))
+    fig.add_hline(y=overall * 100, line_dash="dash", line_color="#898781",
+                  annotation_text=f"all commits ({overall:.0%})", annotation_position="top right")
+    return _layout(fig, title=title, xaxis_title="Cluster", yaxis_title="Buggy commits (%)",
+                   yaxis_range=[0, max(table["bug_rate"]) * 100 + 12])
+
+
+def outlier_chart(outliers: dict, mst: dict, overall: float) -> go.Figure:
+    """Unusual commits found three ways by clustering, against everything else."""
+    names = ["Far from K-Means centre", "DBSCAN noise", "Cut off by the spanning tree"]
+    unusual = [outliers["kmeans_far_rate"], outliers["dbscan_noise_rate"], mst["outlier_bug_rate"]]
+    normal = [outliers["kmeans_rest_rate"], outliers["dbscan_rest_rate"], mst["rest_bug_rate"]]
+    fig = go.Figure([
+        go.Bar(y=names, x=[v * 100 for v in unusual], name="unusual commits", orientation="h", marker_color=BUGGY,
+               hovertemplate="%{y}: %{x:.1f}% buggy<extra>unusual</extra>"),
+        go.Bar(y=names, x=[v * 100 for v in normal], name="everything else", orientation="h", marker_color=CLEAN,
+               hovertemplate="%{y}: %{x:.1f}% buggy<extra>everything else</extra>"),
+    ])
+    fig.add_vline(x=overall * 100, line_dash="dash", line_color="#898781")
+    fig.update_yaxes(autorange="reversed")
+    return _layout(fig, height=300, barmode="group", title="Outliers found by clustering are riskier",
+                   xaxis_title="Buggy commits (%)", legend=dict(orientation="h", y=-0.25))
+
+
+def variance_chart(cumulative) -> go.Figure:
+    """Share of variance kept by the first n principal components (from the SVD)."""
+    n = list(range(1, len(cumulative) + 1))
+    fig = go.Figure(go.Scatter(x=n, y=[c * 100 for c in cumulative], mode="lines+markers",
+                               line=dict(color=CLEAN, width=2.5),
+                               hovertemplate="%{x} components keep %{y:.1f}% of the variance<extra></extra>"))
+    for level in (80, 90, 95):
+        fig.add_hline(y=level, line_dash="dot", line_color="#b5b4ae", annotation_text=f"{level}%",
+                      annotation_position="right")
+    return _layout(fig, height=300, title="Variance kept by principal components (via SVD)",
+                   xaxis_title="Number of components", yaxis_title="Variance kept (%)")
+
+
+def embedding_chart(xy, labels, title: str) -> go.Figure:
+    """A 2-D map of commits, coloured by whether they were buggy."""
+    fig = go.Figure()
+    for value, name, color in [(0, "Clean", CLEAN), (1, "Buggy", BUGGY)]:
+        mask = labels == value
+        fig.add_trace(go.Scattergl(x=xy[mask, 0], y=xy[mask, 1], mode="markers", name=name,
+                                   marker=dict(color=color, size=5, opacity=0.55), hoverinfo="skip"))
+    fig.update_xaxes(showticklabels=False)
+    fig.update_yaxes(showticklabels=False)
+    return _layout(fig, height=420, title=title, legend=dict(orientation="h", y=-0.08))
+
+
+def loadings_heatmap(loadings: pd.DataFrame) -> go.Figure:
+    """Factor analysis loadings: which features move together."""
+    fig = go.Figure(go.Heatmap(
+        z=loadings.to_numpy(), x=list(loadings.columns), y=[FEATURE_INFO[f].label for f in loadings.index],
+        zmin=-1, zmax=1, colorscale=[[0, LOWERS_RISK], [0.5, "#f0efec"], [1, BUGGY]],
+        text=loadings.round(2).to_numpy(), texttemplate="%{text}", hovertemplate="%{y}, %{x}: %{z:.2f}<extra></extra>",
+    ))
+    fig.update_yaxes(autorange="reversed")
+    return _layout(fig, height=460, title="Factor analysis: hidden factors behind the features")
+
+
+def som_heatmap(rates) -> go.Figure:
+    """Bug rate on each node of a self-organizing map."""
+    fig = go.Figure(go.Heatmap(z=rates * 100, zmin=0, zmax=60, colorscale=[[0, LOWERS_RISK], [0.5, "#f0efec"], [1, BUGGY]],
+                               colorbar=dict(title="% buggy"), hovertemplate="node (%{y}, %{x}): %{z:.0f}% buggy<extra></extra>"))
+    fig.update_xaxes(showticklabels=False)
+    fig.update_yaxes(showticklabels=False, autorange="reversed")
+    return _layout(fig, height=460, title="Self-organizing map: bug rate per node")
+
+
+def accuracy_recall_chart(table: pd.DataFrame) -> go.Figure:
+    """Accuracy next to recall, to show why accuracy alone misleads."""
+    fig = go.Figure([
+        go.Bar(y=table["model"], x=table["accuracy"] * 100, name="accuracy", orientation="h", marker_color="#52514e",
+               text=[f"{v:.0%}" for v in table["accuracy"]], textposition="outside"),
+        go.Bar(y=table["model"], x=table["recall"] * 100, name="buggy commits caught", orientation="h",
+               marker_color=BUGGY, text=[f"{v:.0%}" for v in table["recall"]], textposition="outside"),
+    ])
+    fig.update_yaxes(autorange="reversed")
+    return _layout(fig, height=340, barmode="group", title="High accuracy can still mean catching almost no bugs",
+                   xaxis=dict(title="%", range=[0, 112]), legend=dict(orientation="h", y=-0.25))

@@ -120,7 +120,19 @@ def test_every_page_with_real_artifacts(monkeypatch):
 
 def test_data_explorer_page(app):
     at = open_page(app, "Data Explorer")
-    assert len(at.tabs) == 6
     assert any("Repeated commit ids" in m.label for m in at.metric)
-    at.slider[0].set_value(0.3).run()  # change how often the simulated reviewer explores
+    sections = at.radio(key="explorer_section").options
+    assert len(sections) == 7
+    for section in sections:  # every section renders without errors
+        at.radio(key="explorer_section").set_value(section).run()
+        assert not at.exception, section
+    at.radio(key="explorer_section").set_value("Clustering").run()
+    at.slider(key="kmeans_k").set_value(5).run()
+    assert not at.exception
+    at.radio(key="explorer_section").set_value("Dimensionality").run()
+    for method in at.radio(key="embedding_method").options:
+        at.radio(key="embedding_method").set_value(method).run()
+        assert not at.exception, method
+    at.radio(key="explorer_section").set_value("Baseline and learning reviewer").run()
+    at.slider(key="bandit_epsilon").set_value(0.3).run()  # change how often the simulated reviewer explores
     assert not at.exception

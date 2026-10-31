@@ -26,7 +26,7 @@ A bare number like "73% risky" isn't much help on its own, though. People want t
 3. **Dataset** (`build_dataset.py`). Features and labels go into `data/processed/dataset.csv`. We drop the newest 180 days because bugs in very recent commits usually haven't been found yet.
 4. **Models** (`modeling.py`, `train.py`). We compare 13 classic algorithms, try class weights and SMOTE for the class imbalance, tune the stronger models, and pick a winner using cross-validation on the training period only. The newest 20% of commits are kept aside as the test set.
 5. **Explanations** (`explain.py`). SHAP shows what drives risk overall and for each single commit. LIME gives a second opinion. Both get turned into readable sentences.
-6. **App** (`app/streamlit_app.py`, `cli.py`). Score any commit, see why it was flagged, and play with a what-if simulator.
+6. **App** (`app/streamlit_app.py`, `cli.py`). Score any commit, see why it was flagged, play with a what-if simulator and explore the data (clustering, 2-D maps and a small learning reviewer) page by page.
 
 ## The 14 features
 
@@ -200,7 +200,7 @@ app/                Streamlit app
 notebooks/          EDA notebook
 reports/            generated tables and figures
 docs/               report, slides, screenshots
-tests/              pytest tests (62 of them)
+tests/              pytest tests (63 of them)
 ```
 
 ## Methods at a glance

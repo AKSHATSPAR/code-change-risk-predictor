@@ -466,6 +466,10 @@ We built a Streamlit app so the model can actually be used. It is live at https:
 
 ![Overview page](screenshots/overview.png)
 
+**Data explorer.** The analysis from Sections 4, 6 and 7 in interactive form, in seven parts that follow the order of the analysis: data quality (types, duplicates, missing values and the three ways of filling them), size bands, the bug rate over time, contingency tables with the chi-square and Bayesian tests, clustering (pick the number of K-Means clusters and compare it with spectral, Gaussian mixture, hierarchical and spanning-tree clustering), dimensionality (the SVD spectrum, factor loadings, the self-organizing map and 2-D maps from PCA, t-SNE, MDS and Isomap) and finally the regression baseline next to the learning reviewer, whose exploration rate and number of rounds can be changed on the page.
+
+![Data explorer page, clustering part](screenshots/explorer.png)
+
 **Model leaderboard.** Every algorithm's scores, the selected model and how it was chosen.
 
 ![Leaderboard page](screenshots/leaderboard.png)
