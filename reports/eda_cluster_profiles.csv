@@ -1,0 +1,4 @@
+cluster,size,share,bug_rate,description,ns,nd,nf,entropy,la,ld,lt,fix,ndev,age,nuc,exp,rexp,sexp
+0,428,0.15351506456241032,0.40654205607476634,"high subsystems touched, high directories touched, high change spread (entropy)",2.0,2.0,2.0,0.8598,19.0,5.0,576.5,0.0,78.0,11.83,310.5,3.0,3.0,3.0
+1,1199,0.4300573888091822,0.1901584653878232,"high author recent experience, high author experience, high author subsystem experience",1.0,1.0,1.0,0.0,3.0,2.0,197.0,0.0,5.0,0.2,44.0,284.0,284.0,148.0
+2,1161,0.4164275466284075,0.17915590008613264,"low author subsystem experience, low author recent experience, low author experience",1.0,1.0,1.0,0.0,3.0,1.0,606.0,0.0,41.0,3.15,145.0,1.0,1.0,1.0
