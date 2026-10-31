@@ -1,0 +1,7 @@
+cluster,top words,commits,bug rate
+M1,"urllib, import, new, upgrade, fix",68,0.38235294117647056
+M2,"fixes, issue, python, redirects, pyflakes",53,0.3018867924528302
+M0,"fix, add, tests, use, fixed",2212,0.2255877034358047
+M4,"update, urllib, docs, models, setup",111,0.1981981981981982
+M3,"test, add, added, fix, case",229,0.16593886462882096
+M5,"remove, unused, test, import, bunk",115,0.0782608695652174

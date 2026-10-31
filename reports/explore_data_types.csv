@@ -1,0 +1,23 @@
+column,data type,scale,example,note
+repo,Categorical,Nominal,requests,project name; a label with no order
+commit_hash,Categorical (identifier),Nominal,0477018761c67152cdcc0b83d56f27...,unique id of the commit
+author_id,Categorical (identifier),Nominal,064eb87b8f,anonymised author; only equal or not equal makes sense
+author_date,Date-time,Interval,2011-02-13 18:52:37+00:00,"differences between dates are meaningful, but there is no true zero"
+message,Text,Nominal,easy setup.py,"free text, analysed separately as documents"
+ns,"Numerical, discrete",Ratio,1.0,a count with a true zero
+nd,"Numerical, discrete",Ratio,1.0,a count with a true zero
+nf,"Numerical, discrete",Ratio,1.0,a count with a true zero
+entropy,"Numerical, continuous",Ratio,0.0,between 0 and 1; 0 means all changes in one file
+la,"Numerical, discrete",Ratio,48.0,a count; 200 lines really is twice 100 lines
+ld,"Numerical, discrete",Ratio,0.0,a count with a true zero
+lt,"Numerical, continuous",Ratio,0.0,"an average of counts, so it can be fractional"
+fix,Categorical (binary),Nominal,0.0,"yes or no, stored as 1 or 0"
+ndev,"Numerical, discrete",Ratio,0.0,a count with a true zero
+age,"Numerical, continuous",Ratio,0.0,days; can be fractional
+nuc,"Numerical, discrete",Ratio,0.0,a count with a true zero
+exp,"Numerical, discrete",Ratio,0.0,a count with a true zero
+rexp,"Numerical, continuous",Ratio,0.0,"a weighted count, so it can be fractional"
+sexp,"Numerical, discrete",Ratio,0.0,a count with a true zero
+buggy,Categorical (binary),Nominal,0,the target: 1 if the commit later caused a bug
+size_band (derived),Categorical,Ordinal,21-100,lines added grouped into bands; the order matters but gaps are uneven
+weekday (derived),Categorical,Nominal,Sunday,day of the week the commit was made (UTC)
